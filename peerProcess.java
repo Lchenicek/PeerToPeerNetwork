@@ -16,6 +16,9 @@ public class peerProcess{
     int fileSize;   //bytes
     int pieceSize;  //bytes
     int pieceCount;     //we could infer this from the above two but I think it's cleaner to do it like this
+    boolean hasFile;
+    //bitfield?
+    //socket stuff
     
     public peerProcess(String _id){
         id = Integer.parseInt(_id);
@@ -56,6 +59,7 @@ public class peerProcess{
         }
         peerProcess Peer = new peerProcess(args[0]);    //I think this is how to construct in java it has been a moment
         //TODO: the actual server stuff at the moment
+        //will need to use threads (barf)
     }
 }
 
