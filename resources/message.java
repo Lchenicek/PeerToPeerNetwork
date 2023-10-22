@@ -52,6 +52,27 @@ public class message {
         msg = length + Integer.toString(messageType.value);
     }
 
+    public static boolean isValidHandshake(String handshake, int expectedID) {
+        //Verify header
+        if (handshake.length() != 32) {
+            //This prevents us from getting an error of out of index
+            return false;
+        }
+        String handshakeHeader = handshake.substring(0, 18);
+        if (!handshakeHeader.equals("P2PFILESHARINGPROJ")) {
+            return false;
+        }
+        String zeros = handshake.substring(18, 28);
+        if (!zeros.equals("0000000000")) {
+            return false;
+        }
+        String peerID = handshake.substring(28, 32);
+        if (!peerID.equals(Integer.toString(expectedID))) {
+            return false;
+        }
+        return true;
+    }
+
     public String getMessage() {
         return msg;
     }
@@ -59,5 +80,9 @@ public class message {
     public static void main(String[] args){
         message testMsg = new message(4, MessageType.handshake, "1002");
         System.out.println(testMsg.getMessage());
+        System.out.println(isValidHandshake(testMsg.getMessage(), 1002));
+        System.out.println(isValidHandshake(testMsg.getMessage(), 1003));
+        message bitfieldMessage = new message(10, MessageType.bitfield, "0000000001");
+        System.out.println(isValidHandshake(bitfieldMessage.getMessage(), 1002));
     }
 }

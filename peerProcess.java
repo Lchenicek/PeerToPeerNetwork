@@ -66,6 +66,12 @@ public class peerProcess{
                 String response = (String) in.readObject();
                 System.out.println("Recieved handshake response: " + response);
 
+                //Verify handshake
+                if (!message.isValidHandshake(response, info.id)) {
+                    //FIXME: what to do when handshake is invalid?
+                    System.out.println("Invalid handshake!");
+                }
+
                 //Next send bitfield
                 String bitfieldPayload = myBitfield.getMessagePayload();
                 message bitfieldMsg = new message(bitfieldPayload.length(), message.MessageType.bitfield,  bitfieldPayload);
@@ -127,6 +133,12 @@ public class peerProcess{
                 System.out.println("Received handshake: " + handshake);
                 message handshakeResponse = new message(32, message.MessageType.handshake, Integer.toString(id));
                 out.writeObject(handshakeResponse.getMessage());
+
+                //Verify handshake
+                if (!message.isValidHandshake(handshake, _id)) {
+                    //FIXME: what to do when handshake is invalid?
+                    System.out.println("Invalid handshake!");
+                }
 
                 //Bitfield
                 String bitfieldMsg = (String) in.readObject();
