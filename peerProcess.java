@@ -114,15 +114,17 @@ public class peerProcess{
             //if we can't find the config file just kill it, since it isn't going to work
         }
 
+        int earlierPeers = 0;   //outside of try cause we need it for the for loop later
         try  (BufferedReader readerPeer = new BufferedReader(new FileReader("./PeerInfo.cfg"))){
             String line;
             boolean encounteredSelf = false;
-            int earlierPeers = 0;
             peers = new Vector<peerInfo>();
+
             /* my rationale for this is it's easier to read the whole file and then determine what to do from there,
              * rather than reading in one line, connecting, reading in the next, connecting, and so on.
              * This way our port can know it's own information before connection begins, and reading the file
              * won't be gummed up waiting for connections. Also, we know how many peers to expect */
+
             while((line = readerPeer.readLine()) != null){
                 String[] parsedLine = line.split(" ");
                 int peerId = Integer.parseInt(parsedLine[0]);    //first member of peerCfg is the peer id
@@ -147,8 +149,20 @@ public class peerProcess{
             System.err.println("Config file PeerInfo.cfg not found");
             System.exit(-1);
         }
-        //TODO: read other config file to determine peers, if this has the file
 
+        for(int i = 0; i < earlierPeers; i++){
+            new peerConnection(peers.elementAt(i)).start();     //make the thread to connect to the earlier peers
+        }
+        try{
+            ServerSocket listener = new ServerSocket(port);
+            System.out.println("Listener started successfully");
+            for(int i = 0; i < peers.size() - earlierPeers; i++){   //we're awaiting connections from total peers - earlier peers others
+                new peerConnection(listener.accept(), peers.elementAt(i + earlierPeers).id).start();   //this assumes peers connect in order, they might not. fix?
+            }
+        } catch (IOException e){
+            System.err.println("Could not start listener");
+            System.exit(-1);
+        }   //it's kind of nice java doesn't let you leave exceptions unhandled but this is getting annoying
 
     }
     public static void main(String[] args){
