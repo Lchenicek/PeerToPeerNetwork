@@ -19,6 +19,7 @@ public class peerProcess{
     int port;
     Vector<peerInfo> peers; //just for construction. not the actual sockets or anything
     Vector<peerConnection> threads; //store all threads
+    logger Log;
     //bitfield? we need one i just don't know what to do lmao
     //file IO
     //we should probably have a binary semaphore for writing to the file
@@ -49,10 +50,10 @@ public class peerProcess{
             peerId = info.id;
             try{
                 connection = new Socket(info.hostname, info.port);  //connect to peer's server/listener socket
+                Log.startConnection(peerId);
                 out = new ObjectOutputStream(connection.getOutputStream());
                 out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
                 in = new ObjectInputStream(connection.getInputStream());
-                System.out.println("Connected to peer " + Integer.toString(id) + " successfully!");
                 //TODO: i'm not entirely sure. umm. the handshake? I don't think that should be in our constructor though
 
             } catch (ConnectException e){
@@ -74,10 +75,10 @@ public class peerProcess{
             try{
                 connection = _connection;   //get socket from listener
                 peerId = _id;
+                Log.receiveConnection(peerId);
                 out = new ObjectOutputStream(connection.getOutputStream());
                 out.flush();    
                 in = new ObjectInputStream(connection.getInputStream());
-                System.out.println("Connection received from peer " + Integer.toString(id) + " successfully!");
             } catch (IOException e){
                 System.err.println("IO error on establising in/out streams");
                 System.exit(-1);
@@ -92,6 +93,7 @@ public class peerProcess{
 
     public peerProcess(String _id){
         id = Integer.parseInt(_id);
+        Log = new logger(id);
         try (BufferedReader readerCfg = new BufferedReader(new FileReader("./Common.cfg"))){
             String line;
             while((line = readerCfg.readLine()) != null){
@@ -172,7 +174,6 @@ public class peerProcess{
 
         try{
             ServerSocket listener = new ServerSocket(port);
-            System.out.println("Listener started successfully");
             for(int i = 0; i < peers.size() - earlierPeers; i++){   //we're awaiting connections from total peers - earlier peers others
                 peerConnection peerConn = new peerConnection(listener.accept(), peers.elementAt(i + earlierPeers).id);   //this assumes peers connect in order, they might not. fix?
                 peerConn.start();
