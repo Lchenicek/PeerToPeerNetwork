@@ -22,11 +22,11 @@ public class peerProcess{
     //socket stuff
 
     private class peerInfo{
-        int id;
-        String hostname;
-        int port;
+        public int id;
+        public String hostname;
+        public int port;
 
-        peerInfo(String _id, String _hostname, String _port){
+        public peerInfo(String _id, String _hostname, String _port){
             id = Integer.parseInt(_id);
             hostname = _hostname;
             port = Integer.parseInt(_port);
@@ -34,6 +34,51 @@ public class peerProcess{
     }       
     //simple little container for storing info until we make the connection. 
     //might be a bad way of going it, feel free to change
+    //could be bad java but i'm bootlegging a struct
+
+    private static class peerConnection extends Thread{
+        private int id; //is having this many variables named "id" getting confusing?
+        private Socket connection;
+        private ObjectInputStream in;   //read to socket
+        private ObjectOutputStream out; //write to socket. cribbing from sample code here
+
+        public peerConnection(peerInfo info){
+            id = info.id;
+            try{
+                connection = new Socket(info.hostname, info.port);
+                out = new ObjectOutputStream(connection.getOutputStream());
+                out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
+                in = new ObjectInputStream(connection.getInputStream());
+                System.out.println("Connected to peer " + Integer.toString(id) + " successfully!");
+                //TODO: i'm not entirely sure. umm. the handshake? I don't think that should be in our constructor though
+
+            } catch (ConnectException e){
+                System.err.println("Connection refused. Server's not up. I think.");
+                System.exit(-1); //is killing this on any error bad? I don't think so
+            } catch (UnknownHostException e){
+                System.err.println("Trying to connect to an unknown host");
+                System.exit(-1); 
+            } catch (Exception e){
+                System.err.println("I don't even know what's up, man");
+                System.exit(-1); 
+            }
+        }      //constructor for if this peer is connecting to another peer. we make the socket
+
+        public peerConnection(Socket _connection, int _id){
+            try{
+                connection = _connection;
+                id = _id;
+                out = new ObjectOutputStream(connection.getOutputStream());
+                out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
+                in = new ObjectInputStream(connection.getInputStream());
+                System.out.println("Connection received from peer " + Integer.toString(id) + " successfully!");
+            } catch (IOException e){
+                System.err.println("IO error on establising in/out streams");
+                System.exit(-1);
+            }
+        }  //constructor for this peer got connection from another peer. we got the socket from the listener
+
+    }
 
     public peerProcess(String _id){
         id = Integer.parseInt(_id);
@@ -55,7 +100,7 @@ public class peerProcess{
                  * feel free to change it */
 
                 else{
-                    System.out.println("Invalid config file line " + givenParameter + " present in file");
+                    System.err.println("Invalid config file line " + givenParameter + " present in file");
                     System.exit(-1);
                 }
                 pieceCount = (int) Math.ceil((double) fileSize/(double) pieceSize);     //this many conversions is gross but i want to ensure it works
@@ -63,7 +108,7 @@ public class peerProcess{
                 reader.close();
             }
         } catch(Exception e){
-            System.out.println("Config file Common.cfg not found");
+            System.err.println("Config file Common.cfg not found");
             System.exit(-1);    //i think you go negative with an error. that's os knowledge. it might also be the direct opposite. oops
             //if we can't find the config file just kill it, since it isn't going to work
         }
@@ -97,7 +142,7 @@ public class peerProcess{
             }
             reader.close();
         } catch(Exception e){
-            System.out.println("Config file PeerInfo.cfg not found");
+            System.err.println("Config file PeerInfo.cfg not found");
             System.exit(-1);
         }
         //TODO: read other config file to determine peers, if this has the file
@@ -106,7 +151,7 @@ public class peerProcess{
     }
     public static void main(String[] args){
         if (args.length != 1){
-            System.out.println("You must specify an id and nothing more");
+            System.err.println("You must specify an id and nothing more");
             return;
         }
         peerProcess Peer = new peerProcess(args[0]);    //I think this is how to construct in java it has been a moment
