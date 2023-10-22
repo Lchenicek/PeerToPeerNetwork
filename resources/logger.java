@@ -52,3 +52,4 @@ public class logger {
     //TODO: destruct logger and close file
     //TODO: rest of logger methods
     //TODO(?):log wipes every run. should it be consistent?
+}
