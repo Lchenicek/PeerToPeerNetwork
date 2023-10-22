@@ -1,3 +1,5 @@
+package resources;
+
 import java.io.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -8,7 +10,7 @@ public class logger {
 
     public logger(int _id){
         id = Integer.toString(_id);
-        String filepath = "./log_peer_" + id + ".log";
+        String filepath = "./log_peer_" + id + ".log";  //while this file is a directory lower, it's called from 1 up so go in PWD
         try{
             logFile = new BufferedWriter(new FileWriter(filepath));
         }catch (IOException e){
@@ -49,5 +51,4 @@ public class logger {
 
     //TODO: destruct logger and close file
     //TODO: rest of logger methods
-    //TODO(?): wipe log file every time we run it?
-}
+    //TODO(?):log wipes every run. should it be consistent?

@@ -4,7 +4,8 @@ import java.nio.*;
 import java.nio.channels.*;
 import java.nio.file.Files;
 import java.util.*;
-import resources.bitfield;
+import resources.*;
+
 
 public class peerProcess{
 
