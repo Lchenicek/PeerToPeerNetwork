@@ -20,7 +20,6 @@ public class peerProcess{
     Vector<peerInfo> peers; //just for construction. not the actual sockets or anything
     Vector<peerConnection> threads; //store all threads
     //bitfield? we need one i just don't know what to do lmao
-    //socket stuff
     //file IO
     //we should probably have a binary semaphore for writing to the file
 
@@ -40,13 +39,14 @@ public class peerProcess{
     //could be bad java but i'm bootlegging a struct
 
     private class peerConnection extends Thread{     //threads so 1 socket doesn't block connections to other peers
-        private int id; //is having this many variables named "id" getting confusing?
+
+        private int peerId; //is having this many variables named "id" getting confusing?
         private Socket connection;
         private ObjectInputStream in;   //read to socket
         private ObjectOutputStream out; //write to socket. cribbing from sample code here
 
-        public peerConnection(peerInfo info){
-            id = info.id;
+        public peerConnection(peerInfo info){ //constructor for if this peer is connecting to another peer. we make the socket
+            peerId = info.id;
             try{
                 connection = new Socket(info.hostname, info.port);  //connect to peer's server/listener socket
                 out = new ObjectOutputStream(connection.getOutputStream());
@@ -68,12 +68,12 @@ public class peerProcess{
                 System.err.println("I don't even know what's up, man");
                 System.exit(-1); 
             }
-        }      //constructor for if this peer is connecting to another peer. we make the socket
+        }      
 
-        public peerConnection(Socket _connection, int _id){
+        public peerConnection(Socket _connection, int _id){ //constructor for this peer got connection from another peer. we got the socket from the listener
             try{
                 connection = _connection;   //get socket from listener
-                id = _id;
+                peerId = _id;
                 out = new ObjectOutputStream(connection.getOutputStream());
                 out.flush();    
                 in = new ObjectInputStream(connection.getInputStream());
@@ -82,7 +82,7 @@ public class peerProcess{
                 System.err.println("IO error on establising in/out streams");
                 System.exit(-1);
             }
-        }  //constructor for this peer got connection from another peer. we got the socket from the listener
+        }  
 
         public void run(){  //gets called when we do .start() on the thread
             while(true){}
