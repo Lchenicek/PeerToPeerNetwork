@@ -1,13 +1,14 @@
+package resources;
+
 import java.util.ArrayList;
-import java.util.RandomAccess;
 
 public class bitfield {
     private final ArrayList<Boolean> pieces = new ArrayList<Boolean>();
 
-    public bitfield(int filesize, int pieceSize, int hasFile) {
+    public bitfield(int filesize, int pieceSize, boolean hasFile) {
         //If the file size is 100Bytes and a piece is 10bytes, we can just record the 10 pieces we may or may not have
         int bitfieldSize = filesize / pieceSize;
-        if (hasFile == 1) {
+        if (hasFile) {
             //If we have the file, set all bits to 1
             for (int i = 0; i < bitfieldSize; ++i) {
                 pieces.add(true);
@@ -28,7 +29,7 @@ public class bitfield {
         pieces.set(index, true);
     }
 
-    //Takes in another bitfield, returns a list of pieces we want by index?
+    //Takes in another resources.bitfield, returns a list of pieces we want by index?
     public ArrayList<Integer> getMissingBits(ArrayList<Boolean> otherBitfield) {
         ArrayList<Integer> intrestingPieces = new ArrayList<Integer>();
         for (int i = 0; i < otherBitfield.size(); ++i) {
@@ -41,11 +42,11 @@ public class bitfield {
     }
 
     public static void main(String[] args){
-        bitfield testBitfield = new bitfield(100, 10, 0);
-        bitfield semiFullBitfield = new bitfield(100, 10, 0);
+        bitfield testBitfield = new bitfield(100, 10, false);
+        bitfield semiFullBitfield = new bitfield(100, 10, false);
         semiFullBitfield.addPiece(3);
         semiFullBitfield.addPiece(7);
-        bitfield fullBitfield = new bitfield(100, 10, 1);
+        bitfield fullBitfield = new bitfield(100, 10, true);
         ArrayList<Integer> test1 = testBitfield.getMissingBits(semiFullBitfield.getBitfield());
         System.out.println("Test1:");
         for (Integer integer : test1) {

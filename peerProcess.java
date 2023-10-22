@@ -4,6 +4,7 @@ import java.nio.*;
 import java.nio.channels.*;
 import java.nio.file.Files;
 import java.util.*;
+import resources.bitfield;
 
 public class peerProcess{
 
@@ -19,7 +20,7 @@ public class peerProcess{
     int port;
     Vector<peerInfo> peers; //just for construction. not the actual sockets or anything
     Vector<peerConnection> threads; //store all threads
-    //bitfield? we need one i just don't know what to do lmao
+    bitfield myBitfield;
     //file IO
     //we should probably have a binary semaphore for writing to the file
 
@@ -138,12 +139,14 @@ public class peerProcess{
             while((line = readerPeer.readLine()) != null){
                 String[] parsedLine = line.split(" ");
                 int peerId = Integer.parseInt(parsedLine[0]);    //first member of peerCfg is the peer id
+                //If we found ourselves, initialize and set up our values
                 if(peerId == id){
                     encounteredSelf = true;
                     port = Integer.parseInt(parsedLine[2]);
                     if(Integer.parseInt(parsedLine[3]) == 1) hasFile = true;
                     else hasFile = false;
-                    //TODO: set up bitfield here
+                    //Set up bitfield, if hasFile, then all values are 1.
+                    myBitfield = new bitfield(fileSize, pieceSize, hasFile);
                 }
                 //get our port number from the file, if we have the file
                 //we don't care about our hostname, we're running on this machine
