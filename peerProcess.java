@@ -57,6 +57,13 @@ public class peerProcess{
                 out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
                 in = new ObjectInputStream(connection.getInputStream());
                 //TODO: i'm not entirely sure. umm. the handshake? I don't think that should be in our constructor though
+                //Create handshake
+                message handshake = new message(32, message.MessageType.handshake, id);
+                //Send message
+                out.writeObject(handshake.getMessage());
+                out.flush();
+                String response = (String) in.readObject();
+                System.out.println("Recieved handshake response: " + response);
 
             } catch (ConnectException e){
                 System.err.println("Connection refused. Server's not up. I think.");
@@ -81,9 +88,18 @@ public class peerProcess{
                 out = new ObjectOutputStream(connection.getOutputStream());
                 out.flush();    
                 in = new ObjectInputStream(connection.getInputStream());
+                System.out.println("Connection received from peer " + Integer.toString(id) + " successfully!");
+                //Handshake
+                String handshake = (String) in.readObject();
+                System.out.println("Recieved handshake: " + handshake);
+                message handshakeResponse = new message(32, message.MessageType.handshake, id);
+                out.writeObject(handshakeResponse.getMessage());
             } catch (IOException e){
                 System.err.println("IO error on establising in/out streams");
                 System.exit(-1);
+            } catch (ClassNotFoundException e) {
+                System.err.println("I could not add the handshake line unless I added this catch ¯\\_(ツ)_/¯");
+                e.printStackTrace();
             }
         }  
 
