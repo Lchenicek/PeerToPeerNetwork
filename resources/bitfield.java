@@ -41,6 +41,33 @@ public class bitfield {
         return intrestingPieces;
     }
 
+    public String getMessagePayload() {
+        //Returns pieces as string (0 for missing, 1 for has)
+        String payload = "";
+        for (int i = 0; i < pieces.size(); ++i) {
+            if (pieces.get(i)) {
+                payload += "1";
+            }
+            else {
+                payload += "0";
+            }
+        }
+        return payload;
+    }
+
+    public ArrayList<Integer> processBitfieldMessage(String bitfieldMsg) {
+        int msgSize = Integer.parseInt(bitfieldMsg.substring(0, 4));
+        ArrayList<Integer> intrestingBits = new ArrayList<>();
+        //We start at 5 because 0-3 is the size, 4 is the type and 5-msgSize is payload
+        for (int i = 5; i < msgSize; ++i) {
+            //This only works because we know the size of the payload and Array list are the same
+            if (bitfieldMsg.charAt(i) == '1' && !pieces.get(i - 5)) {
+                intrestingBits.add(i);
+            }
+        }
+        return intrestingBits;
+    }
+
     public static void main(String[] args){
         bitfield testBitfield = new bitfield(100, 10, false);
         bitfield semiFullBitfield = new bitfield(100, 10, false);
@@ -57,5 +84,8 @@ public class bitfield {
         for (Integer integer : test2) {
             System.out.println(integer);
         }
+        System.out.println("\nTest3:");
+        String test3 = semiFullBitfield.getMessagePayload();
+        System.out.println(test3);
     }
 }

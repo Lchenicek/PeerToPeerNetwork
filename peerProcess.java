@@ -57,13 +57,45 @@ public class peerProcess{
                 out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
                 in = new ObjectInputStream(connection.getInputStream());
                 //TODO: i'm not entirely sure. umm. the handshake? I don't think that should be in our constructor though
+
                 //Create handshake
-                message handshake = new message(32, message.MessageType.handshake, id);
+                message handshake = new message(32, message.MessageType.handshake, Integer.toString(id));
                 //Send message
                 out.writeObject(handshake.getMessage());
                 out.flush();
                 String response = (String) in.readObject();
                 System.out.println("Recieved handshake response: " + response);
+
+                //Next send bitfield
+                String bitfieldPayload = myBitfield.getMessagePayload();
+                message bitfieldMsg = new message(bitfieldPayload.length(), message.MessageType.bitfield,  bitfieldPayload);
+                out.writeObject(bitfieldMsg.getMessage());
+                response = (String) in.readObject();
+                System.out.println("Recieved bitfield response: " + response);
+
+                //Process bitfield response
+                ArrayList<Integer> desiredPieces = myBitfield.processBitfieldMessage(response);
+                //TODO: I assume we'll have to keep track of desiredBits (it'd probably need a semaphor)
+
+                //Send interest message
+                //TODO: do something with level of interest
+                if (desiredPieces.isEmpty()) {
+                    message notInterestedMsg = new message(0, message.MessageType.notInterested);
+                    out.writeObject(notInterestedMsg.getMessage());
+                }
+                else {
+                    message interestedMsg = new message(0, message.MessageType.interested);
+                    out.writeObject(interestedMsg.getMessage());
+                }
+
+                //Receive interest response
+                String interestResponse = (String) in.readObject();
+                if (interestResponse.charAt(4) == '2') {
+                    System.out.println("Peer interested");
+                }
+                else {
+                    System.out.println("Peer not interested");
+                }
 
             } catch (ConnectException e){
                 System.err.println("Connection refused. Server's not up. I think.");
@@ -72,7 +104,7 @@ public class peerProcess{
                 System.err.println("Trying to connect to an unknown host");
                 System.exit(-1); 
             } catch (IOException e){
-                System.err.println("IOExcpetion. idk what to tell you");
+                System.err.println("IOException. idk what to tell you");
                 System.exit(-1); 
             } catch (Exception e){
                 System.err.println("I don't even know what's up, man");
@@ -89,13 +121,46 @@ public class peerProcess{
                 out.flush();    
                 in = new ObjectInputStream(connection.getInputStream());
                 System.out.println("Connection received from peer " + Integer.toString(id) + " successfully!");
+
                 //Handshake
                 String handshake = (String) in.readObject();
-                System.out.println("Recieved handshake: " + handshake);
-                message handshakeResponse = new message(32, message.MessageType.handshake, id);
+                System.out.println("Received handshake: " + handshake);
+                message handshakeResponse = new message(32, message.MessageType.handshake, Integer.toString(id));
                 out.writeObject(handshakeResponse.getMessage());
+
+                //Bitfield
+                String bitfieldMsg = (String) in.readObject();
+                System.out.println("Received bitfield: " + bitfieldMsg);
+                String bitfieldPayload = myBitfield.getMessagePayload();
+                message bitfieldResponse = new message(bitfieldPayload.length(), message.MessageType.bitfield,  bitfieldPayload);
+                out.writeObject(bitfieldResponse.getMessage());
+
+                //Process bitfield response
+                ArrayList<Integer> desiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
+                //TODO: I assume we'll have to keep track of desiredBits (it'd probably need a semaphor)
+
+                //Send interest message
+                //TODO: do something with level of interest
+                if (desiredPieces.isEmpty()) {
+                    message notInterestedMsg = new message(0, message.MessageType.notInterested);
+                    out.writeObject(notInterestedMsg.getMessage());
+                }
+                else {
+                    message interestedMsg = new message(0, message.MessageType.interested);
+                    out.writeObject(interestedMsg.getMessage());
+                }
+
+                //Receive interest response
+                String interestResponse = (String) in.readObject();
+                if (interestResponse.charAt(4) == '2') {
+                    System.out.println("Peer interested");
+                }
+                else {
+                    System.out.println("Peer not interested");
+                }
+
             } catch (IOException e){
-                System.err.println("IO error on establising in/out streams");
+                System.err.println("IO error on establishing in/out streams");
                 System.exit(-1);
             } catch (ClassNotFoundException e) {
                 System.err.println("I could not add the handshake line unless I added this catch ¯\\_(ツ)_/¯");
