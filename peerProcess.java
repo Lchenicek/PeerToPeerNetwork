@@ -20,6 +20,7 @@ public class peerProcess{
     boolean hasFile;
     int port;
     Vector<peerInfo> peers; //just for construction. not the actual sockets or anything
+    Vector<peerConnection> threads; //store all threads
     //bitfield? we need one i just don't know what to do lmao
     //socket stuff
 
@@ -38,7 +39,7 @@ public class peerProcess{
     //might be a bad way of going it, feel free to change
     //could be bad java but i'm bootlegging a struct
 
-    private static class peerConnection extends Thread{
+    private class peerConnection extends Thread{     //threads so 1 socket doesn't block connections to other peers
         private int id; //is having this many variables named "id" getting confusing?
         private Socket connection;
         private ObjectInputStream in;   //read to socket
@@ -74,7 +75,7 @@ public class peerProcess{
                 connection = _connection;   //get socket from listener
                 id = _id;
                 out = new ObjectOutputStream(connection.getOutputStream());
-                out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
+                out.flush();    
                 in = new ObjectInputStream(connection.getInputStream());
                 System.out.println("Connection received from peer " + Integer.toString(id) + " successfully!");
             } catch (IOException e){
@@ -83,6 +84,9 @@ public class peerProcess{
             }
         }  //constructor for this peer got connection from another peer. we got the socket from the listener
 
+        public void run(){
+            while(true){}
+        }
     }
 
     public peerProcess(String _id){
@@ -150,20 +154,30 @@ public class peerProcess{
                 }
             }
             readerPeer.close();
+            
         } catch(Exception e){
             System.err.println("Config file PeerInfo.cfg not found");
             System.exit(-1);
         }
 
+        threads = new Vector<peerConnection>();
+
         for(int i = 0; i < earlierPeers; i++){
-            new peerConnection(peers.elementAt(i)).start();     //make the thread to connect to the earlier peers
+            peerConnection peerConn = new peerConnection(peers.elementAt(i));     //make the thread to connect to the earlier peers
+            peerConn.start();
+            threads.add(peerConn);
         }
+
         try{
             ServerSocket listener = new ServerSocket(port);
             System.out.println("Listener started successfully");
             for(int i = 0; i < peers.size() - earlierPeers; i++){   //we're awaiting connections from total peers - earlier peers others
-                new peerConnection(listener.accept(), peers.elementAt(i + earlierPeers).id).start();   //this assumes peers connect in order, they might not. fix?
+                peerConnection peerConn = new peerConnection(listener.accept(), peers.elementAt(i + earlierPeers).id);   //this assumes peers connect in order, they might not. fix?
+                peerConn.start();
+                threads.add(peerConn);
             }
+            listener.close();   //don't need any more server connections
+
         } catch (IOException e){
             System.err.println("Could not start listener");
             System.exit(-1);
