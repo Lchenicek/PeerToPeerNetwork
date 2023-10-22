@@ -5,8 +5,6 @@ import java.nio.channels.*;
 import java.nio.file.Files;
 import java.util.*;
 
-//TODO: current biggest issue in on peer to peer stuff. the second connection to a peer isn't working
-
 public class peerProcess{
 
     int id;
@@ -23,6 +21,8 @@ public class peerProcess{
     Vector<peerConnection> threads; //store all threads
     //bitfield? we need one i just don't know what to do lmao
     //socket stuff
+    //file IO
+    //we should probably have a binary semaphore for writing to the file
 
     private class peerInfo{
         public int id;
@@ -84,9 +84,10 @@ public class peerProcess{
             }
         }  //constructor for this peer got connection from another peer. we got the socket from the listener
 
-        public void run(){
+        public void run(){  //gets called when we do .start() on the thread
             while(true){}
         }
+        //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection
     }
 
     public peerProcess(String _id){
@@ -154,7 +155,7 @@ public class peerProcess{
                 }
             }
             readerPeer.close();
-            
+
         } catch(Exception e){
             System.err.println("Config file PeerInfo.cfg not found");
             System.exit(-1);
