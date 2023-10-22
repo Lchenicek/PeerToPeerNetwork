@@ -5,6 +5,8 @@ import java.nio.channels.*;
 import java.nio.file.Files;
 import java.util.*;
 
+//TODO: current biggest issue in on peer to peer stuff. the second connection to a peer isn't working
+
 public class peerProcess{
 
     int id;
@@ -45,7 +47,7 @@ public class peerProcess{
         public peerConnection(peerInfo info){
             id = info.id;
             try{
-                connection = new Socket(info.hostname, info.port);
+                connection = new Socket(info.hostname, info.port);  //connect to peer's server/listener socket
                 out = new ObjectOutputStream(connection.getOutputStream());
                 out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
                 in = new ObjectInputStream(connection.getInputStream());
@@ -58,6 +60,9 @@ public class peerProcess{
             } catch (UnknownHostException e){
                 System.err.println("Trying to connect to an unknown host");
                 System.exit(-1); 
+            } catch (IOException e){
+                System.err.println("IOExcpetion. idk what to tell you");
+                System.exit(-1); 
             } catch (Exception e){
                 System.err.println("I don't even know what's up, man");
                 System.exit(-1); 
@@ -66,7 +71,7 @@ public class peerProcess{
 
         public peerConnection(Socket _connection, int _id){
             try{
-                connection = _connection;
+                connection = _connection;   //get socket from listener
                 id = _id;
                 out = new ObjectOutputStream(connection.getOutputStream());
                 out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
