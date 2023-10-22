@@ -143,6 +143,7 @@ public class peerProcess{
                     port = Integer.parseInt(parsedLine[2]);
                     if(Integer.parseInt(parsedLine[3]) == 1) hasFile = true;
                     else hasFile = false;
+                    //TODO: set up bitfield here
                 }
                 //get our port number from the file, if we have the file
                 //we don't care about our hostname, we're running on this machine
