@@ -82,12 +82,13 @@ public class peerProcess{
 
     public peerProcess(String _id){
         id = Integer.parseInt(_id);
-        try (BufferedReader reader = new BufferedReader(new FileReader("./Common.cfg"))){
+        try (BufferedReader readerCfg = new BufferedReader(new FileReader("./Common.cfg"))){
             String line;
-            while((line = reader.readLine()) != null){
+            while((line = readerCfg.readLine()) != null){
                 String[] parsedLine = line.split(" ");
                 String givenParameter = parsedLine[0];  
-                String value = parsedLine[1];             
+                String value = parsedLine[1];     
+              
                 if(givenParameter.equals("NumberOfPreferredNeighbors")) numberOfPreferredNeighbors = Integer.parseInt(value);
                 else if(givenParameter.equals("UnchokingInterval")) unchokingInterval = Integer.parseInt(value);
                 else if(givenParameter.equals("OptimisticUnchokingInterval")) optimisticUnchokingInterval = Integer.parseInt(value);
@@ -104,24 +105,25 @@ public class peerProcess{
                     System.exit(-1);
                 }
                 pieceCount = (int) Math.ceil((double) fileSize/(double) pieceSize);     //this many conversions is gross but i want to ensure it works
-                //ceil because we can't have half a piece or whatever, one piece will just have some empty space
-                reader.close();
+                //ceil because we can't have half a piece or whatever, one piece will just have some empty space   
             }
+            readerCfg.close();
         } catch(Exception e){
             System.err.println("Config file Common.cfg not found");
             System.exit(-1);    //i think you go negative with an error. that's os knowledge. it might also be the direct opposite. oops
             //if we can't find the config file just kill it, since it isn't going to work
         }
 
-        try  (BufferedReader reader = new BufferedReader(new FileReader("./PeerInfo.cfg"))){
+        try  (BufferedReader readerPeer = new BufferedReader(new FileReader("./PeerInfo.cfg"))){
             String line;
             boolean encounteredSelf = false;
             int earlierPeers = 0;
+            peers = new Vector<peerInfo>();
             /* my rationale for this is it's easier to read the whole file and then determine what to do from there,
              * rather than reading in one line, connecting, reading in the next, connecting, and so on.
              * This way our port can know it's own information before connection begins, and reading the file
              * won't be gummed up waiting for connections. Also, we know how many peers to expect */
-            while((line = reader.readLine()) != null){
+            while((line = readerPeer.readLine()) != null){
                 String[] parsedLine = line.split(" ");
                 int peerId = Integer.parseInt(parsedLine[0]);    //first member of peerCfg is the peer id
                 if(peerId == id){
@@ -140,7 +142,7 @@ public class peerProcess{
                     //it does make it easy to know how many to expect, so I think it's valid to keep it like this
                 }
             }
-            reader.close();
+            readerPeer.close();
         } catch(Exception e){
             System.err.println("Config file PeerInfo.cfg not found");
             System.exit(-1);
