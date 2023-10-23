@@ -3,6 +3,7 @@ package resources;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 
 public class fileManager {
@@ -81,13 +82,20 @@ public class fileManager {
     }
 
     public static void main(String[] args){
-        fileManager readFromFile = new fileManager("1001", "thefile", 2167705, 16384, false);
-        fileManager writeToFile = new fileManager("1002", "thefile", 2167705, 16384, true);
+        /*
+        fileManager readFromFile = new fileManager("1001", "thefile", 2167705, 16384, true);
+        fileManager writeToFile = new fileManager("1002", "thefile", 2167705, 16384, false);
         int pieceCount = (int) Math.ceil((double) 2167705/(double) 16384);
         for (int i = 0; i < pieceCount; ++i) {
             byte[] temp = readFromFile.readData(i, 1);
             writeToFile.writeData(i, temp);
         }
         writeToFile.writeToFile();
+         */
+        fileManager read = new fileManager("1001", "thefile", 2167705, 16384, true);
+        byte[] readByte = read.readData(1, 1);
+        String readString = new String(readByte);
+        byte[] writeBite = readString.getBytes(StandardCharsets.UTF_8);
+        System.out.println(writeBite[0]);
     }
 }

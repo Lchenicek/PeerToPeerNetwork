@@ -2,6 +2,7 @@ import java.net.*;
 import java.io.*;
 import java.nio.*;
 import java.nio.channels.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.Semaphore;
@@ -30,7 +31,7 @@ public class peerProcess{
     //we should probably have a binary semaphore for writing to the file
 
     //Semaphors cuz threading
-    ArrayList<Integer> peersIntrested = new ArrayList<>(); //Peers interested in our data
+    ArrayList<Integer> peersInterested = new ArrayList<>(); //Peers interested in our data
     Semaphore semPeersInterested = new Semaphore(1); //Semaphor for above data
 
     private class peerInfo{
@@ -106,7 +107,7 @@ public class peerProcess{
                 if (interestResponse.charAt(4) == '2') {
                     //Add interested peer to our list (mostly for peers with completed sets)
                     semPeersInterested.acquire();
-                    peersIntrested.add(info.id);
+                    peersInterested.add(info.id);
                     semPeersInterested.release();
 
                     System.out.println("Peer interested");
@@ -179,7 +180,7 @@ public class peerProcess{
                 if (interestResponse.charAt(4) == '2') {
                     //Add interested peer to our list (mostly for peers with completed sets)
                     semPeersInterested.acquire();
-                    peersIntrested.add(_id);
+                    peersInterested.add(_id);
                     semPeersInterested.release();
 
                     System.out.println("Peer interested");
@@ -197,7 +198,7 @@ public class peerProcess{
             } catch (InterruptedException e) {
                 System.err.println("Semaphor related error most likely" + e);
             }
-        }  
+        }
 
         public void run(){  //gets called when we do .start() on the thread
             while(true){}
@@ -304,7 +305,17 @@ public class peerProcess{
         }   //it's kind of nice java doesn't let you leave exceptions unhandled but this is getting annoying
 
     }
-    public static void main(String[] args){
+
+    public peerConnection getPeerConnection(int peerId) throws Exception {
+        for (int i = 0; i < threads.size(); ++i) {
+            if (threads.get(i).peerId == peerId) {
+                return threads.get(i);
+            }
+        }
+        throw new Exception("Got peer that didn't exist: peer #" + peerId);
+    }
+
+    public static void main(String[] args) throws Exception {
         if (args.length != 1){
             System.err.println("You must specify an id and nothing more");
             return;
@@ -312,14 +323,14 @@ public class peerProcess{
         peerProcess Peer = new peerProcess(args[0]);    //I think this is how to construct in java it has been a moment
         //TODO: the actual server stuff at the moment (currently only executes once we have 3 peers, is this intended?)
 
+        int selectedPeer = -1;
         if (Peer.hasFile) {
             //If we have the file, select neighbors randomly (should be # of connections, only selecting 1 for testing)
-            int selectedPeer;
             Random rand = new Random();
             try {
                 //Get the data
                 Peer.semPeersInterested.acquire();
-                ArrayList<Integer> peersInterested = Peer.peersIntrested;
+                ArrayList<Integer> peersInterested = Peer.peersInterested;
                 Peer.semPeersInterested.release();
 
                 int selectedPeerIndex = rand.nextInt(peersInterested.size());
@@ -331,12 +342,44 @@ public class peerProcess{
 
         }
 
+        int i = 0;
+        System.out.println("Piece count: " + Peer.pieceCount);
         //Should go right before loop
         long lastRecalc = System.currentTimeMillis();
         while (true) {
             if (System.currentTimeMillis() - lastRecalc > Peer.unchokingInterval * 1000L) {
                 System.out.println("Recalculate top downloaders");
                 lastRecalc = System.currentTimeMillis();
+            }
+            //FIXME: Currently just implemented to send one peer all the data
+            /*
+            I figure we can break up the sending data into three steps:
+            1. Sending all the data to 1 peer
+            2. Having all peers communicate with each other (1001 starts sending to 1002 and 1003 while 1002 and 1003 communicate too)
+            3. Implement choking and peer download recalculation
+            This is currently just step 1
+             */
+            //Peer who has file
+            if (Peer.hasFile && i < Peer.pieceCount) {
+                //If we have the file, send some data to the peer we selected
+                byte[] onePiece = Peer.myFileManager.readData(i,  1); //The one piece is real
+                String msgPayload = new String(onePiece);
+                message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
+                System.out.println("Getting peer #" + selectedPeer);
+                Peer.getPeerConnection(selectedPeer).out.writeObject(pieceMsg.getMessage());
+                Peer.getPeerConnection(selectedPeer).out.flush();
+                i = i + 1;
+            } //Peer who doesn't have file
+            else if (!Peer.hasFile && i < Peer.pieceCount) {
+                String piece = (String) Peer.getPeerConnection(1001).in.readObject();
+                String msgPayload = piece.substring(5);
+                System.out.println(i + ": msgPayload size: " + msgPayload.getBytes(StandardCharsets.UTF_8).length);
+                Peer.myFileManager.writeData(i, msgPayload.getBytes(StandardCharsets.UTF_8));
+                i = i + 1;
+                if (i == Peer.pieceCount) {
+                    //On the last iteration
+                    Peer.myFileManager.writeToFile();
+                }
             }
         }
         //will need to use threads (barf)
