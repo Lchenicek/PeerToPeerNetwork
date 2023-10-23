@@ -82,7 +82,6 @@ public class fileManager {
     }
 
     public static void main(String[] args){
-        /*
         fileManager readFromFile = new fileManager("1001", "thefile", 2167705, 16384, true);
         fileManager writeToFile = new fileManager("1002", "thefile", 2167705, 16384, false);
         int pieceCount = (int) Math.ceil((double) 2167705/(double) 16384);
@@ -91,11 +90,5 @@ public class fileManager {
             writeToFile.writeData(i, temp);
         }
         writeToFile.writeToFile();
-         */
-        fileManager read = new fileManager("1001", "thefile", 2167705, 16384, true);
-        byte[] readByte = read.readData(1, 1);
-        String readString = new String(readByte);
-        byte[] writeBite = readString.getBytes(StandardCharsets.UTF_8);
-        System.out.println(writeBite[0]);
     }
 }
