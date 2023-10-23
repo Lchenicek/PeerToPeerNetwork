@@ -343,10 +343,10 @@ public class peerProcess{
         }
 
         int i = 0;
-        System.out.println("Piece count: " + Peer.pieceCount);
         //Should go right before loop
         long lastRecalc = System.currentTimeMillis();
         while (true) {
+            //I have broken this system. It worked before (and still mostly does) but the peer who does nothing right now is blocked by waiting for input
             if (System.currentTimeMillis() - lastRecalc > Peer.unchokingInterval * 1000L) {
                 System.out.println("Recalculate top downloaders");
                 lastRecalc = System.currentTimeMillis();
@@ -365,7 +365,6 @@ public class peerProcess{
                 byte[] onePiece = Peer.myFileManager.readData(i,  1); //The one piece is real
                 String msgPayload = new String(onePiece);
                 message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-                System.out.println("Getting peer #" + selectedPeer);
                 Peer.getPeerConnection(selectedPeer).out.writeObject(pieceMsg.getMessage());
                 Peer.getPeerConnection(selectedPeer).out.flush();
                 i = i + 1;
@@ -373,7 +372,6 @@ public class peerProcess{
             else if (!Peer.hasFile && i < Peer.pieceCount) {
                 String piece = (String) Peer.getPeerConnection(1001).in.readObject();
                 String msgPayload = piece.substring(5);
-                System.out.println(i + ": msgPayload size: " + msgPayload.getBytes(StandardCharsets.UTF_8).length);
                 Peer.myFileManager.writeData(i, msgPayload.getBytes(StandardCharsets.UTF_8));
                 i = i + 1;
                 if (i == Peer.pieceCount) {
