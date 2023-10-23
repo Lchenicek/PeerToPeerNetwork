@@ -7,7 +7,7 @@ public class bitfield {
 
     public bitfield(int filesize, int pieceSize, boolean hasFile) {
         //If the file size is 100Bytes and a piece is 10bytes, we can just record the 10 pieces we may or may not have
-        int bitfieldSize = filesize / pieceSize;
+        int bitfieldSize = (int) Math.ceil((double) filesize/(double) pieceSize);
         if (hasFile) {
             //If we have the file, set all bits to 1
             for (int i = 0; i < bitfieldSize; ++i) {
