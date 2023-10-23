@@ -12,12 +12,24 @@ public class fileManager {
     int fileSize;
     public byte[] bytes;
 
-    public fileManager(String id, String fileName, int fileSize, int pieceSize) {
+    public fileManager(String id, String fileName, int fileSize, int pieceSize, boolean hasFile) {
+        path = id + "/" + fileName;
+
         this.pieceSize = pieceSize;
         this.fileSize = fileSize;
-        path = id + "/" + fileName;
         bytes = new byte[fileSize];
         file = new File(path);
+        if(file.exists() && !hasFile) {
+            //If we shouldn't have the file but do
+            file.delete();
+            file = new File(path);
+        }
+        else if(!file.exists() && hasFile) {
+            //If we should have the file, but don't
+            System.err.println("Peer #" + id + " should have file named \"" + fileName + "\" but doesn't");
+        }
+
+        //Is purposefully not else if!
         if (!file.exists()) {
             try {
                 file.createNewFile();
@@ -69,8 +81,8 @@ public class fileManager {
     }
 
     public static void main(String[] args){
-        fileManager readFromFile = new fileManager("1001", "thefile", 2167705, 16384);
-        fileManager writeToFile = new fileManager("1002", "thefile", 2167705, 16384);
+        fileManager readFromFile = new fileManager("1001", "thefile", 2167705, 16384, false);
+        fileManager writeToFile = new fileManager("1002", "thefile", 2167705, 16384, true);
         int pieceCount = (int) Math.ceil((double) 2167705/(double) 16384);
         for (int i = 0; i < pieceCount; ++i) {
             byte[] temp = readFromFile.readData(i, 1);

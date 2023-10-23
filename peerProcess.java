@@ -4,6 +4,9 @@ import java.nio.*;
 import java.nio.channels.*;
 import java.nio.file.Files;
 import java.util.*;
+import java.util.concurrent.Semaphore;
+import java.util.Random;
+
 import resources.*;
 
 
@@ -23,8 +26,12 @@ public class peerProcess{
     Vector<peerConnection> threads; //store all threads
     logger Log;
     bitfield myBitfield;
-    //file IO
+    fileManager myFileManager;
     //we should probably have a binary semaphore for writing to the file
+
+    //Semaphors cuz threading
+    ArrayList<Integer> peersIntrested = new ArrayList<>(); //Peers interested in our data
+    Semaphore semPeersInterested = new Semaphore(1); //Semaphor for above data
 
     private class peerInfo{
         public int id;
@@ -97,6 +104,11 @@ public class peerProcess{
                 //Receive interest response
                 String interestResponse = (String) in.readObject();
                 if (interestResponse.charAt(4) == '2') {
+                    //Add interested peer to our list (mostly for peers with completed sets)
+                    semPeersInterested.acquire();
+                    peersIntrested.add(info.id);
+                    semPeersInterested.release();
+
                     System.out.println("Peer interested");
                 }
                 else {
@@ -165,6 +177,11 @@ public class peerProcess{
                 //Receive interest response
                 String interestResponse = (String) in.readObject();
                 if (interestResponse.charAt(4) == '2') {
+                    //Add interested peer to our list (mostly for peers with completed sets)
+                    semPeersInterested.acquire();
+                    peersIntrested.add(_id);
+                    semPeersInterested.release();
+
                     System.out.println("Peer interested");
                 }
                 else {
@@ -177,6 +194,8 @@ public class peerProcess{
             } catch (ClassNotFoundException e) {
                 System.err.println("I could not add the handshake line unless I added this catch ¯\\_(ツ)_/¯");
                 e.printStackTrace();
+            } catch (InterruptedException e) {
+                System.err.println("Semaphor related error most likely" + e);
             }
         }  
 
@@ -243,6 +262,7 @@ public class peerProcess{
                     else hasFile = false;
                     //Set up bitfield, if hasFile, then all values are 1.
                     myBitfield = new bitfield(fileSize, pieceSize, hasFile);
+                    myFileManager = new fileManager(Integer.toString(id), filename, fileSize, pieceSize, hasFile);
                 }
                 //get our port number from the file, if we have the file
                 //we don't care about our hostname, we're running on this machine
@@ -290,7 +310,35 @@ public class peerProcess{
             return;
         }
         peerProcess Peer = new peerProcess(args[0]);    //I think this is how to construct in java it has been a moment
-        //TODO: the actual server stuff at the moment
+        //TODO: the actual server stuff at the moment (currently only executes once we have 3 peers, is this intended?)
+
+        if (Peer.hasFile) {
+            //If we have the file, select neighbors randomly (should be # of connections, only selecting 1 for testing)
+            int selectedPeer;
+            Random rand = new Random();
+            try {
+                //Get the data
+                Peer.semPeersInterested.acquire();
+                ArrayList<Integer> peersInterested = Peer.peersIntrested;
+                Peer.semPeersInterested.release();
+
+                int selectedPeerIndex = rand.nextInt(peersInterested.size());
+                selectedPeer = peersInterested.get(selectedPeerIndex);
+                System.out.println("This peer has the file. Begin transfer to peer #" + Integer.toString(selectedPeer));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+
+        }
+
+        //Should go right before loop
+        long lastRecalc = System.currentTimeMillis();
+        while (true) {
+            if (System.currentTimeMillis() - lastRecalc > Peer.unchokingInterval * 1000L) {
+                System.out.println("Recalculate top downloaders");
+                lastRecalc = System.currentTimeMillis();
+            }
+        }
         //will need to use threads (barf)
     }
 }
