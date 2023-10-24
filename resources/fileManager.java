@@ -17,6 +17,10 @@ public class fileManager {
     public fileManager(String id, String fileName, int fileSize, int pieceSize, boolean hasFile) {
         path = id + "/" + fileName;
 
+        File dir = new File("./" + id);
+        if (!dir.exists()) dir.mkdirs();
+        //if the process' specific directory doesn't exist, we make it before trying to open the file
+        
         this.pieceSize = pieceSize;
         this.fileSize = fileSize;
         this.Log = Log;
