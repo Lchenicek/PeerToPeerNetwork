@@ -11,6 +11,7 @@ public class fileManager {
     String path;
     int pieceSize;
     int fileSize;
+    logger Log;
     public byte[] bytes;
 
     public fileManager(String id, String fileName, int fileSize, int pieceSize, boolean hasFile) {
@@ -18,6 +19,7 @@ public class fileManager {
 
         this.pieceSize = pieceSize;
         this.fileSize = fileSize;
+        this.Log = Log;
         bytes = new byte[fileSize];
         file = new File(path);
         if(file.exists() && !hasFile) {

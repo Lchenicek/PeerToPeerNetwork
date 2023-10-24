@@ -3,6 +3,7 @@ package resources;
 import java.io.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.Vector;
 
 public class logger {
     String id;
@@ -19,21 +20,71 @@ public class logger {
     }
 
     public void startConnection(int peer){
-        String logEntry = getTime() + "Peer " +  id + " makes a connection to Peer " + Integer.toString(peer) + ".\n";
+        String logEntry = startEntry() + "makes a connection to Peer " + Integer.toString(peer) + ".\n";
         writeEntry(logEntry);
     } 
     //log entry if we start the connection to another peer
 
     public void receiveConnection(int peer){
-        String logEntry = getTime() + "Peer " +  id + " is connected from Peer " + Integer.toString(peer) + ".\n";
+        String logEntry = startEntry() + "is connected from Peer " + Integer.toString(peer) + ".\n";
         writeEntry(logEntry);
     }
     //log entry if we got connection from another peer
 
-    private static String getTime(){
+    public void changeNeighbors(Vector<Integer> peers){
+        String logEntry = startEntry() + "has the preferred neighbors ";
+        for(int p : peers){
+            logEntry += Integer.toString(p) + ", ";
+        }
+        logEntry = logEntry.substring(0, logEntry.length() - 2);
+        writeEntry(logEntry);
+    }
+
+    public void optimisticUnchoke(int peer){
+        String logEntry = startEntry() + "has the optimistically unchoked neighbor " + Integer.toString(peer) + ".\n";
+        writeEntry(logEntry);
+    }
+
+    public void isUnchoked(int peer){
+        String logEntry = startEntry() + "is unchoked by " + Integer.toString(peer) + ".\n";
+        writeEntry(logEntry);    
+    }
+
+    public void isChoked(int peer){
+        String logEntry = startEntry() + "is choked by " + Integer.toString(peer) + ".\n";
+        writeEntry(logEntry);        
+    }
+
+    public void receiveHaveMessage(int peer, int index){
+        String logEntry = startEntry() + "received the \'have\' message from " + Integer.toString(peer) + " for the piece " + Integer.toString(index) + ".\n";
+        writeEntry(logEntry);        
+    }
+
+    public void receiveInterestedMessage(int peer){
+        String logEntry = startEntry() + "received the \'interested\' message from " + Integer.toString(peer) + ".\n";
+        writeEntry(logEntry);        
+    }
+
+    public void receiveNotInterestedMessage(int peer){
+        String logEntry = startEntry() + "received the \'not interested\' message from " + Integer.toString(peer) + ".\n";
+        writeEntry(logEntry);        
+    }
+
+    public void downloadPiece(int peer, int index, int pieceCount){
+        String logEntry = startEntry() + "has downloaded the piece " + Integer.toString(index) + " from " + Integer.toString(peer) + 
+        ". Now the number of pieces it has is " + Integer.toString(pieceCount) + ".\n";
+        writeEntry(logEntry);        
+    }
+
+    public void completeDownload(){
+        String logEntry = startEntry() + "has downloaded the complete file.\n";
+        writeEntry(logEntry);
+    }
+
+    private String startEntry(){
         LocalDateTime now = LocalDateTime.now();    //get the current time
         String formattedDateTime = now.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);   //convert it to a string formatted in iso standard
-        return "[" + formattedDateTime + "]: ";      //make it a little prettier
+        return "[" + formattedDateTime + "]: " + "Peer " + id + " ";      //make it a little prettier
     }
     //static so we can just grab this whenever we need it, makes individual log functions cleaner
 

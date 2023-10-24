@@ -111,9 +111,11 @@ public class peerProcess{
                     semPeersInterested.release();
 
                     System.out.println("Peer interested");
+                    Log.receiveInterestedMessage(peerId);
                 }
                 else {
                     System.out.println("Peer not interested");
+                    Log.receiveNotInterestedMessage(peerId);
                 }
 
             } catch (ConnectException e){
@@ -184,9 +186,11 @@ public class peerProcess{
                     semPeersInterested.release();
 
                     System.out.println("Peer interested");
+                    Log.receiveInterestedMessage(peerId);
                 }
                 else {
                     System.out.println("Peer not interested");
+                    Log.receiveNotInterestedMessage(peerId);
                 }
 
             } catch (IOException e){
@@ -360,10 +364,11 @@ public class peerProcess{
             This is currently just step 1
              */
             //Peer who has file
+            //FIXME (Post Checkin): move this into the threads
             if (Peer.hasFile && i < Peer.pieceCount) {
                 //If we have the file, send some data to the peer we selected
                 byte[] onePiece = Peer.myFileManager.readData(i,  1); //The one piece is real
-                String msgPayload = new String(onePiece);
+                String msgPayload = new String(onePiece);   //can we get much higher?
                 message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
                 Peer.getPeerConnection(selectedPeer).out.writeObject(pieceMsg.getMessage());
                 Peer.getPeerConnection(selectedPeer).out.flush();
@@ -373,10 +378,12 @@ public class peerProcess{
                 String piece = (String) Peer.getPeerConnection(1001).in.readObject();
                 String msgPayload = piece.substring(5);
                 Peer.myFileManager.writeData(i, msgPayload.getBytes(StandardCharsets.UTF_8));
+                Peer.Log.downloadPiece(1001, i, i);
                 i = i + 1;
                 if (i == Peer.pieceCount) {
                     //On the last iteration
                     Peer.myFileManager.writeToFile();
+                    Peer.Log.completeDownload();
                 }
             }
         }
