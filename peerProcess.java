@@ -288,20 +288,35 @@ public class peerProcess{
 
         threads = new Vector<peerConnection>();
 
-        for(int i = 0; i < earlierPeers; i++){
-            peerConnection peerConn = new peerConnection(peers.elementAt(i));     //make the thread to connect to the earlier peers
-            peerConn.start();
-            threads.add(peerConn);
-        }
+        try {
+          ServerSocket listener = new ServerSocket(port); // Stores server socket.
+          int numPeers = peers.size(); // Stores number of available peers.
+          PeerInfo currentPeer; // Stores current peer.
+          PeerConnection currentPeerConnection; // Stores connection to current peer.
+          boolean isEarlierPeer; // Flag for earlier peers.
+          boolean isLaterPeer; // Flag for later peers.
 
-        try{
-            ServerSocket listener = new ServerSocket(port);
-            for(int i = 0; i < peers.size() - earlierPeers; i++){   //we're awaiting connections from total peers - earlier peers others
-                peerConnection peerConn = new peerConnection(listener.accept(), peers.elementAt(i + earlierPeers).id);   //this assumes peers connect in order, they might not. fix?
-                peerConn.start();
-                threads.add(peerConn);
+          for (int i = 0; i < numPeers; i++) {
+            currentPeer = peers.elementAt(i);
+            isEarlierPeer = currentPeer.id < id;
+            isLaterPeer = currentPeer.id > id; 
+
+            // Creating server connection with later peers.
+            if (isLaterPeer) {
+              currentPeerConnection = new peerConnection(listener.accept(), currentPeer.id);
             }
-            listener.close();   //don't need any more server connections
+            // Creating client connection with earlier peers.
+            else if (isEarlierPeer) {
+              currentPeerConnection = new peerConnection(currentPeer);
+            }
+
+            // Start peer connection and store it among process' threads.
+            currentPeerConnection.start();
+            threads.add(currentPeerConnection);
+          }
+
+          // Close accepted server socket.
+          listener.close(); // don't need any more server connections
 
         } catch (IOException e){
             System.err.println("Could not start listener");
