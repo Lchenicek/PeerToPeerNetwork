@@ -291,8 +291,7 @@ public class peerProcess{
         try {
           ServerSocket listener = new ServerSocket(port); // Stores server socket.
           int numPeers = peers.size(); // Stores number of available peers.
-          PeerInfo currentPeer; // Stores current peer.
-          PeerConnection currentPeerConnection; // Stores connection to current peer.
+          peerInfo currentPeer; // Stores current peer.
           boolean isEarlierPeer; // Flag for earlier peers.
           boolean isLaterPeer; // Flag for later peers.
 
@@ -301,18 +300,22 @@ public class peerProcess{
             isEarlierPeer = currentPeer.id < id;
             isLaterPeer = currentPeer.id > id; 
 
-            // Creating server connection with later peers.
+            // Create and start server connection with later peers.
             if (isLaterPeer) {
-              currentPeerConnection = new peerConnection(listener.accept(), currentPeer.id);
-            }
-            // Creating client connection with earlier peers.
-            else if (isEarlierPeer) {
-              currentPeerConnection = new peerConnection(currentPeer);
-            }
+              peerConnection currentPeerConnection = new peerConnection(listener.accept(), currentPeer.id);
+              currentPeerConnection.start();
 
-            // Start peer connection and store it among process' threads.
-            currentPeerConnection.start();
-            threads.add(currentPeerConnection);
+              // Store connection among process' threads.
+              threads.add(currentPeerConnection);
+            }
+            // Create and start client connection with earlier peers.
+            else if (isEarlierPeer) {
+              peerConnection currentPeerConnection = new peerConnection(currentPeer);
+              currentPeerConnection.start();
+
+              // Store connection among process' threads.
+              threads.add(currentPeerConnection);
+            }
           }
 
           // Close accepted server socket.
