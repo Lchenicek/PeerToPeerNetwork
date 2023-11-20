@@ -54,7 +54,7 @@ public class peerProcess{
         private Socket connection;
         private ObjectInputStream in;   //read to socket
         private ObjectOutputStream out; //write to socket. cribbing from sample code here
-        private static Map<Integer, Boolean> successfulHandshakes = new HashMap<Integer, Boolean>();; // Record of received handshakes from peers the connection has sent a handshake to.
+        private static Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();; // Records whether a handshake has been successfully sent/received between connected peers.
 
         public peerConnection(peerInfo info){ //constructor for if this peer is connecting to another peer. we make the socket
             peerId = info.id;
@@ -218,7 +218,7 @@ public class peerProcess{
         }
 
         public synchronized void SendHandshake() throws Exception {
-          synchronized (successfulHandshakes) {
+          synchronized (handshakeSuccessStatus) {
             try {
               // Create handshake.
               message handshake = new message(32, message.MessageType.handshake, Integer.toString(id));
@@ -231,7 +231,7 @@ public class peerProcess{
             }
 
             // Record handshake sent.
-            successfulHandshakes.put(this.peerId, false);
+            handshakeSuccessStatus.put(this.peerId, false);
             System.out.println("Success! Peer " + this.peerId + " sent handshake to peer " + id);
           }
         }
