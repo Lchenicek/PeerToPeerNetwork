@@ -259,6 +259,38 @@ public class peerProcess{
           }
         }
 
+        public synchronized  void ReceiveHandshake() throws Exception {
+          try {
+            byte[] handshakeBytes = new byte[32];
+            int bytesRead = in.read(handshakeBytes, 0, 32);
+
+            if (bytesRead == -1) {
+              throw new Exception("Handshake bytes not received. Read -1 bytes from input stream");
+            }
+
+            String handshakeStr = new String(handshakeBytes);
+            ValidateHandshake(handshakeStr);
+
+            // Record handshake receipt, if the client has a record of a previously sent handshake.
+            int handshakePeerID = Integer.parseInt(handshakeStr.substring(28, 32));
+            boolean peerHandshakeRecorded = handshakeSuccessStatus.containsKey(handshakePeerID);
+            boolean peerHandshakeReceived = handshakeSuccessStatus.get(handshakePeerID);
+          
+            if (!peerHandshakeRecorded) {
+              throw new Exception("Failure! Tried to received handshake from peer " + handshakePeerID + " without peer sending one first");
+            }
+            else if (peerHandshakeRecorded && peerHandshakeReceived) {
+              throw new Exception("Failure! Received duplicate handshake from peer " + handshakePeerID);
+            }
+
+            // Record successful handshake receipt.
+            handshakeSuccessStatus.put(handshakePeerID, true);
+            System.out.println("Success! Peer " + this.peerId + " received handshake from peer " + handshakePeerID);
+          } catch (Exception e) {
+            System.err.println(e.getMessage());
+          }
+        }
+
         public void run(){  //gets called when we do .start() on the thread
             while(true){}
         }
