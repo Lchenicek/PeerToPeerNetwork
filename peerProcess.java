@@ -25,7 +25,7 @@ public class peerProcess{
     Vector<peerInfo> peers; //just for construction. not the actual sockets or anything
     Vector<peerConnection> threads; //store all threads
     logger Log;
-    bitfield myBitfield;
+    private final static byte[] processOwnerBitfield; // Bitfield of pieces contained by the process owner.
     fileManager myFileManager;
     //we should probably have a binary semaphore for writing to the file
 
@@ -337,6 +337,8 @@ public class peerProcess{
                 //ceil because we can't have half a piece or whatever, one piece will just have some empty space   
             }
             readerCfg.close();
+
+            processOwnerBitfield = new byte[(int) Math.ceil((double) pieceCount / 8.0)];
         } catch(Exception e){
             System.err.println("Config file Common.cfg not found");
             System.exit(-1);    //i think you go negative with an error. that's os knowledge. it might also be the direct opposite. oops
