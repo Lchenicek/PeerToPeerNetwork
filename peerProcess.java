@@ -212,6 +212,17 @@ public class peerProcess{
             this.out = new ObjectOutputStream(connection.getOutputStream());
             this.out.flush();
             this.in = new ObjectInputStream(connection.getInputStream());
+
+            // TODO(bllndalichako): Move to 'run()'?
+            if (isServer) {
+              Log.receiveConnection(peer.id);
+              ReceiveHandshake();
+              SendHandshake();
+            } else {
+              Log.startConnection(peer.id);
+              SendHandshake();
+              ReceiveHandshake();
+            }
           } catch (Exception e) {
             System.err.println(e.getMessage());
           }
