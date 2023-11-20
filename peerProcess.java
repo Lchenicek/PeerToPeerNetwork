@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.Semaphore;
-import java.util.Random;
 
 import resources.*;
 
@@ -202,6 +201,19 @@ public class peerProcess{
             } catch (InterruptedException e) {
                 System.err.println("Semaphor related error most likely" + e);
             }
+        }
+
+        public peerConnection(Socket connection, peerInfo peer, boolean isServer) {
+          this.connection = connection;
+          this.peerId = peer.id;
+
+          try {
+            this.out = new ObjectOutputStream(connection.getOutputStream());
+            this.out.flush();
+            this.in = new ObjectInputStream(connection.getInputStream());
+          } catch (Exception e) {
+            System.err.println(e.getMessage());
+          }
         }
 
         public void run(){  //gets called when we do .start() on the thread
