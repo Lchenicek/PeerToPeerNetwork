@@ -217,6 +217,29 @@ public class peerProcess{
           }
         }
 
+        public void ValidateHandshake(String handshake) throws Exception {
+          if (handshake.length() != 32) {
+            throw new Exception("Wrong handshake length!\n\tExpected: 32 bytes\n\tReceived: " + handshake.length() + " bytes\n");
+          }
+
+          String handshakeHeader = handshake.substring(0, 18);
+          if (!handshakeHeader.equals("P2PFILESHARINGPROJ")) { // TODO(bllndalichako): Store header in constant.
+            throw new Exception("Wrong handshake header!\n\tExpected: P2PFILESHARINGPROJ\n\tReceived: " + handshakeHeader + "\n");
+          }
+
+          String handshakeZeros = handshake.substring(18, 28);
+          if (!handshakeZeros.equals("0000000000")) {
+            throw new Exception("Wrong handshake zero bits!\n\tExpected: 0000000000\n\tReceived: " + handshakeZeros + "\n");
+          }
+
+          String handshakePeerID = handshake.substring(28, 32);
+          if (!handshakePeerID.equals(Integer.toString(this.peerId))) {
+            throw new Exception("Wrong handshake peer ID received!\n\tExpected: " + this.peerId + "\n\tReceived: " + handshakePeerID + "\n");
+          }
+
+          System.out.println("Valid handshake received from peer " + this.peerId);
+        }
+
         public synchronized void SendHandshake() throws Exception {
           synchronized (handshakeSuccessStatus) {
             try {
