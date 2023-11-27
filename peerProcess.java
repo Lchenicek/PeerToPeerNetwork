@@ -414,7 +414,7 @@ public class peerProcess{
           try {
             out.write(interestedMsg.getMessageBytes());
             out.flush();
-            
+
           } catch (Exception e) {
             System.err.println(e.getMessage());
             
@@ -437,6 +437,36 @@ public class peerProcess{
           }
         }
 
+        public synchronized static byte[] ReadBytesFromInputStream(InputStream inputStream, int numBytesToRead) throws Exception {
+          byte[] msgBytes = new byte[numBytesToRead];
+          int numUnreadBytes = numBytesToRead;
+
+          // Read the available bytes from the input stream.
+          // There may be more input bytes than we need to read, hence the while loop.
+          // All bytes may not be readily available in input stream, hence the continuos check for available bytes inside the while loop.
+          while (numUnreadBytes > 0) {
+              int availableBytes = inputStream.available();
+              byte[] tempReadBytes = new byte[Math.min(numUnreadBytes, availableBytes)];
+
+              if (Math.min(numUnreadBytes, availableBytes) > 0) {
+                int bytesRead = inputStream.read(tempReadBytes);
+
+                // Validate message payload bytes.
+                if (bytesRead == -1) {
+                  throw new Exception("Message bytes not received. Read -1 bytes from input stream");
+                } else if (bytesRead != Math.min(numUnreadBytes, availableBytes)) {
+                  throw new Exception("Wrong number of Bytes received. Read " + bytesRead + " bytes from input stream. Expected "+ Math.min(numUnreadBytes, availableBytes) + " bytes.");
+                }
+
+                // Store bytes read into message payload bytes.
+                System.arraycopy(tempReadBytes, 0, msgBytes, numBytesToRead - numUnreadBytes, Math.min(numUnreadBytes, availableBytes));
+                numUnreadBytes -= Math.min(numUnreadBytes, availableBytes);
+              }
+          }
+
+          return msgBytes;
+        }
+        
         public void run(){  //gets called when we do .start() on the thread
           // Don't send bitfield if the process owner doesn't have the file.
           if (hasFile) {
@@ -451,6 +481,44 @@ public class peerProcess{
             SendInterestedMessage();
           } else {
             SendNotInterestedMessage();
+          }
+
+          try {
+            // Read message length from peer.
+            byte[] msgLengthBytes = ReadBytesFromInputStream(in, 4);
+
+            // Convert message length bytes to integer.
+            int msgLength = ByteBuffer.wrap(msgLengthBytes).getInt();
+
+            // Read message type bytes.
+            byte[] msgTypeBytes = ReadBytesFromInputStream(in, 1);
+
+            // Extract message type from "message type" byte.
+            message.MessageType msgType = message.ExtractMessageType(msgTypeBytes);
+            
+            switch (msgType) {
+              case choke:
+                break;
+              case unchoke:
+                break;
+              case interested:
+                break;
+              case notInterested:
+                break;
+              case have:
+                break;
+              case bitfield:
+                break;
+              case request:
+                break;
+              case piece:
+                break;
+              default:
+                break;
+            }
+
+          } catch (Exception e) {
+            System.err.println(e.getMessage());
           }
         }
         //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection

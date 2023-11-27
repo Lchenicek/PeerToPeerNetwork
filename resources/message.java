@@ -106,6 +106,9 @@ public class message {
       return msgBytes;
     }
     
+    public static MessageType ExtractMessageType(byte[] messageTypeBytes) {
+      return MessageType.values()[messageTypeBytes[0]];
+    }
     public static void main(String[] args){
         message testMsg = new message(4, MessageType.handshake, "1002");
         System.out.println(testMsg.getMessage());
