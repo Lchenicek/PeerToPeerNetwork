@@ -50,7 +50,7 @@ public class message {
       // Convert message length to byte array
       messageLengthBytes = convertIntToByteArray(messageLength);
 
-      msgBytes = new byte[messageLengthBytes.length + messagePayload.length];
+      msgBytes = new byte[messageLengthBytes.length + messageLength];
 
       // Consolidate all byte[] into one.
       System.arraycopy(messageLengthBytes, 0, msgBytes, 0, messageLengthBytes.length);
