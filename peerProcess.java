@@ -384,6 +384,26 @@ public class peerProcess{
           }
         }
 
+        // TODO(bndalichako): Function below may have issues b/c connectedBitField may be empty.
+        public synchronized boolean PeerIsInterested() {
+          // Determine if connected peer has pieces that the process owner needs.
+          // If so, peer is interested.
+          // If not, peer is not interested.
+          boolean isInterested = false;
+
+          for (int i = 0; i < processOwnerBitfield.length; i++) {
+
+            if ((processOwnerBitfield[i] & connectedPeerBitfield[i]) != processOwnerBitfield[i]) {
+
+              isInterested = true;
+
+              break;
+            }
+          }
+
+          return isInterested;
+        }
+
         public void run(){  //gets called when we do .start() on the thread
           // Don't send bitfield if the process owner doesn't have the file.
           if (hasFile) {
