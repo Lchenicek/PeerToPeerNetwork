@@ -350,18 +350,33 @@ public class peerProcess{
             }
 
             // Read message payload bytes.
-            byte[] msgPayloadBytes = new byte[msgLength - 1]; // -1 For message type byte.
-            bytesRead = in.read(msgPayloadBytes);
+            int payloadLength = msgLength - 1; // -1 For message type byte.
+            byte[] msgPayloadBytes = new byte[payloadLength];
+            int numUnreadPayloadBytes = payloadLength;
 
-            // Validate message payload bytes.
-            if (bytesRead == -1) {
-              throw new Exception("Bitfield message bytes not received. Read -1 bytes from input stream");
-            } else if (bytesRead != msgLength - 1) {
-              throw new Exception("Wrong bitfield message payload length received. Read " + bytesRead + " bytes from input stream");
+            // Read the available bytes from the input stream.
+            // There may be more input bytes than we need to read, hence the while loop.
+            // All bytes may not be readily available in input stream, hence the continuos check for available bytes inside the while loop.
+            while (numUnreadPayloadBytes > 0) {
+                int availableBytes = in.available();
+                byte[] tempReadBytes = new byte[Math.min(numUnreadPayloadBytes, availableBytes)];
+
+                if (Math.min(numUnreadPayloadBytes, availableBytes) > 0) {
+                  bytesRead = in.read(tempReadBytes);
+
+                  // Validate message payload bytes.
+                  if (bytesRead == -1) {
+                    throw new Exception("Bitfield message bytes not received. Read -1 bytes from input stream");
+                  } else if (bytesRead != Math.min(numUnreadPayloadBytes, availableBytes)) {
+                    throw new Exception("Wrong bitfield message payload length received. Read " + bytesRead + " bytes from input stream. Expected "+ Math.min(numUnreadPayloadBytes, availableBytes) + " bytes.");
+                  }
+
+                  // Store bytes read into message payload bytes.
+                  System.arraycopy(tempReadBytes, 0, msgPayloadBytes, payloadLength - numUnreadPayloadBytes, Math.min(numUnreadPayloadBytes, availableBytes));
+                  numUnreadPayloadBytes -= Math.min(numUnreadPayloadBytes, availableBytes);
+                }
             }
 
-            // Store bitfield message payload bytes.
-            connectedPeerBitfield = msgPayloadBytes;
           } catch (Exception e) {
             System.err.println(e.getMessage());
           }
