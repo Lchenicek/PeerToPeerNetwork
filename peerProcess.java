@@ -319,7 +319,10 @@ public class peerProcess{
         }
 
         public void run(){  //gets called when we do .start() on the thread
+          // Don't send bitfield if the process owner doesn't have the file.
+          if (hasFile) {
             SendBitfield();
+          }
         }
         //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection
     }
