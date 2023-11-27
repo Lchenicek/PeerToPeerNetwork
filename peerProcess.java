@@ -345,6 +345,8 @@ public class peerProcess{
               throw new Exception("Bitfield message bytes not received. Read -1 bytes from input stream");
             } else if (bytesRead != 1) {
               throw new Exception("Wrong bitfield message type received. Read " + bytesRead + " bytes from input stream");
+            } else if (msgTypeBytes[0] != (byte) message.MessageType.bitfield.value) {
+              throw new Exception("Wrong bitfield message type received. Expected: " + message.MessageType.bitfield.value + " Received: " + msgTypeBytes[0]);
             }
 
             // Read message payload bytes.
@@ -370,7 +372,7 @@ public class peerProcess{
           if (hasFile) {
             SendBitfield();
           }
-          
+
           ReadPeerBitfield();
         }
         //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection
