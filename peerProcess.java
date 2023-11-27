@@ -56,6 +56,7 @@ public class peerProcess{
         private ObjectInputStream in;   //read to socket
         private ObjectOutputStream out; //write to socket. cribbing from sample code here
         private static Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();; // Records whether a handshake has been successfully sent/received between connected peers.
+        byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
 
         public peerConnection(peerInfo info){ //constructor for if this peer is connecting to another peer. we make the socket
             peerId = info.id;
@@ -318,11 +319,59 @@ public class peerProcess{
           }
         }
 
+        public synchronized void ReadPeerBitfield() {
+          try {
+            byte[] msgLengthBytes = new byte[4]; // Stores message length bytes.
+            byte[] msgTypeBytes = new byte[1]; // Stores message type bytes.
+
+            // Read message length bytes.
+            int bytesRead = in.read(msgLengthBytes);
+
+            // Validate message length bytes.
+            if (bytesRead == -1) {
+              throw new Exception("Bitfield message bytes not received. Read -1 bytes from input stream");
+            } else if (bytesRead != 4) {
+              throw new Exception("Wrong bitfield message length received. Read " + bytesRead + " bytes from input stream");
+            }
+
+            // Convert message length bytes to integer.
+            int msgLength = ByteBuffer.wrap(msgLengthBytes).getInt(); 
+
+            // Read message type bytes.
+            bytesRead = in.read(msgTypeBytes);
+
+            // Validate message type bytes.
+            if (bytesRead == -1) {
+              throw new Exception("Bitfield message bytes not received. Read -1 bytes from input stream");
+            } else if (bytesRead != 1) {
+              throw new Exception("Wrong bitfield message type received. Read " + bytesRead + " bytes from input stream");
+            }
+
+            // Read message payload bytes.
+            byte[] msgPayloadBytes = new byte[msgLength - 1]; // -1 For message type byte.
+            bytesRead = in.read(msgPayloadBytes);
+
+            // Validate message payload bytes.
+            if (bytesRead == -1) {
+              throw new Exception("Bitfield message bytes not received. Read -1 bytes from input stream");
+            } else if (bytesRead != msgLength - 1) {
+              throw new Exception("Wrong bitfield message payload length received. Read " + bytesRead + " bytes from input stream");
+            }
+
+            // Store bitfield message payload bytes.
+            connectedPeerBitfield = msgPayloadBytes;
+          } catch (Exception e) {
+            System.err.println(e.getMessage());
+          }
+        }
+
         public void run(){  //gets called when we do .start() on the thread
           // Don't send bitfield if the process owner doesn't have the file.
           if (hasFile) {
             SendBitfield();
           }
+          
+          ReadPeerBitfield();
         }
         //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection
     }
