@@ -404,6 +404,39 @@ public class peerProcess{
           return isInterested;
         }
 
+        // Sends "Interested" message.
+        public synchronized void SendInterestedMessage() {
+          int payloadLength = 0; // "Interested" messages have no payload
+          byte[] msgPayload = new byte[payloadLength];
+
+          message interestedMsg = new message(payloadLength, message.MessageType.interested, msgPayload);
+
+          try {
+            out.write(interestedMsg.getMessageBytes());
+            out.flush();
+            
+          } catch (Exception e) {
+            System.err.println(e.getMessage());
+            
+          }
+        }
+
+        // Sends "Not Interested" message.
+        public synchronized void SendNotInterestedMessage() {
+          int payloadLength = 0; // "Not Interested" messages have no payload
+          byte[] msgPayload = new byte[payloadLength];
+
+          message notInterestedMsg = new message(payloadLength, message.MessageType.notInterested, msgPayload);
+
+          try {
+            out.write(notInterestedMsg.getMessageBytes());
+            out.flush();
+
+          } catch (Exception e) {
+            System.err.println(e.getMessage());
+          }
+        }
+
         public void run(){  //gets called when we do .start() on the thread
           // Don't send bitfield if the process owner doesn't have the file.
           if (hasFile) {
@@ -411,6 +444,14 @@ public class peerProcess{
           }
 
           ReadPeerBitfield();
+
+          // If peer is interested, send "interested" message
+          // Otherwise, send "not interested" message
+          if (PeerIsInterested()) {
+            SendInterestedMessage();
+          } else {
+            SendNotInterestedMessage();
+          }
         }
         //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection
     }
