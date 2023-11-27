@@ -377,6 +377,8 @@ public class peerProcess{
                 }
             }
 
+            // Store connected peer's bitfield.
+            connectedPeerBitfield = msgPayloadBytes;
           } catch (Exception e) {
             System.err.println(e.getMessage());
           }
