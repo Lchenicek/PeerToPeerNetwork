@@ -6,6 +6,7 @@ public class bitfield {
     private final ArrayList<Boolean> pieces = new ArrayList<Boolean>();
 
     public bitfield(int filesize, int pieceSize, boolean hasFile) {
+        // TODO(bndalichako): Note that project PDF talks about implementing trailing 0 bits.
         //If the file size is 100Bytes and a piece is 10bytes, we can just record the 10 pieces we may or may not have
         int bitfieldSize = (int) Math.ceil((double) filesize/(double) pieceSize);
         if (hasFile) {

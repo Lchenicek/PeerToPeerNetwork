@@ -25,7 +25,8 @@ public class peerProcess{
     Vector<peerInfo> peers; //just for construction. not the actual sockets or anything
     Vector<peerConnection> threads; //store all threads
     logger Log;
-    private final static byte[] processOwnerBitfield; // Bitfield of pieces contained by the process owner.
+    bitfield myBitfield;
+    private static byte[] processOwnerBitfield; // Bitfield of pieces contained by the process owner.
     fileManager myFileManager;
     //we should probably have a binary semaphore for writing to the file
 
@@ -302,8 +303,23 @@ public class peerProcess{
           }
         }
 
+        public synchronized void SendBitfield() {
+          try {
+            int payloadLength = processOwnerBitfield.length; 
+
+            // Create bitfield message.
+            message bitfieldMsg = new message(payloadLength, message.MessageType.bitfield,  processOwnerBitfield);
+
+            // Send bitfield message to peer.
+            out.write(bitfieldMsg.getMessageBytes());
+            out.flush();
+          } catch (Exception e) {
+            System.err.println(e.getMessage());
+          }
+        }
+
         public void run(){  //gets called when we do .start() on the thread
-            while(true){}
+            SendBitfield();
         }
         //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection
     }
@@ -338,7 +354,6 @@ public class peerProcess{
             }
             readerCfg.close();
 
-            processOwnerBitfield = new byte[(int) Math.ceil((double) pieceCount / 8.0)];
         } catch(Exception e){
             System.err.println("Config file Common.cfg not found");
             System.exit(-1);    //i think you go negative with an error. that's os knowledge. it might also be the direct opposite. oops
@@ -368,6 +383,9 @@ public class peerProcess{
                     //Set up bitfield, if hasFile, then all values are 1.
                     myBitfield = new bitfield(fileSize, pieceSize, hasFile);
                     myFileManager = new fileManager(Integer.toString(id), filename, fileSize, pieceSize, hasFile);
+
+                    // Initialize process owner bitfield.
+                    initializeBitfield(hasFile);
                 }
                 //get our port number from the file, if we have the file
                 //we don't care about our hostname, we're running on this machine
@@ -380,7 +398,6 @@ public class peerProcess{
                 }
             }
             readerPeer.close();
-
         } catch(Exception e){
             System.err.println("Config file PeerInfo.cfg not found");
             System.exit(-1);
@@ -438,6 +455,24 @@ public class peerProcess{
             }
         }
         throw new Exception("Got peer that didn't exist: peer #" + peerId);
+    }
+
+    public void initializeBitfield(boolean hasFile) {
+      // Fill the bitfield with 1s if the process owner has the file. Otherwise, fill it with 0s.
+      Arrays.fill(processOwnerBitfield, hasFile ? (byte) 0xFF : (byte) 0x00);
+
+      // Determine if the process owner has trailing zero bits.
+      boolean hasTrailingZeroBits = (pieceCount % 8) != 0;
+
+      // Fill the trailing bits with 0s if the process owner has the file.
+      if (hasFile && hasTrailingZeroBits) {
+        int iLastByte = processOwnerBitfield.length - 1;
+        int numTrailingZeroBits = 8 - (pieceCount % 8);
+
+        for (int i = numTrailingZeroBits; i < 8; i++) {
+          processOwnerBitfield[iLastByte] |= (0x01 << i);
+        }
+      }
     }
 
     public static void main(String[] args) throws Exception {

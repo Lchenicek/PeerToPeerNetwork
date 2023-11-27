@@ -24,6 +24,7 @@ public class message {
     MessageType messageType;
     String messagePayload; //I'm not sure how the message payload is supposed to be stored/transmitted (I'm assuming for now it's an int)
     String msg;
+    byte[] msgBytes; // Stores complete message as byte array.
 
     public message(int messageLength, MessageType messageType, String messagePayload) {
         this.messageLength = messageLength;
@@ -42,6 +43,21 @@ public class message {
         }
     }
 
+    public message(int payloadLength, MessageType messageType, byte[] messagePayload) {
+      byte[] messageLengthBytes = new byte[4]; // Stores message length as byte array.
+      int messageLength = payloadLength + 1; // +1 for "message type" byte.
+
+      // Convert message length to byte array
+      messageLengthBytes = convertIntToByteArray(messageLength);
+
+      msgBytes = new byte[messageLengthBytes.length + messagePayload.length];
+
+      // Consolidate all byte[] into one.
+      System.arraycopy(messageLengthBytes, 0, msgBytes, 0, messageLengthBytes.length);
+      msgBytes[messageLengthBytes.length] = (byte) messageType.value;
+      System.arraycopy(messagePayload, 0, msgBytes, messageLengthBytes.length + 1, messagePayload.length);
+    }
+
     public message(int messageLength, MessageType messageType) {
         this.messageLength = messageLength;
         this.messageType = messageType;
@@ -50,6 +66,15 @@ public class message {
             length = "0" + length;
         }
         msg = length + Integer.toString(messageType.value);
+    }
+
+    public static byte[] convertIntToByteArray(int value) {
+        return new byte[] {
+            (byte) ((value >> 24) & 0xFF),
+            (byte) ((value >> 16) & 0xFF),
+            (byte) ((value >> 8) & 0xFF),
+            (byte) (value & 0xFF)
+        };
     }
 
     public static boolean isValidHandshake(String handshake, int expectedID) {
@@ -77,6 +102,10 @@ public class message {
         return msg;
     }
 
+    public byte[] getMessageBytes() {
+      return msgBytes;
+    }
+    
     public static void main(String[] args){
         message testMsg = new message(4, MessageType.handshake, "1002");
         System.out.println(testMsg.getMessage());
