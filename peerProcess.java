@@ -55,7 +55,7 @@ public class peerProcess{
         private Socket connection;
         private ObjectInputStream in;   //read to socket
         private ObjectOutputStream out; //write to socket. cribbing from sample code here
-        private static Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();; // Records whether a handshake has been successfully sent/received between connected peers.
+        private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();; // Records whether a handshake has been successfully sent/received between connected peers.
         byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
 
         // Client connection.
@@ -439,7 +439,7 @@ public class peerProcess{
           }
         }
 
-        public synchronized static byte[] ReadBytesFromInputStream(InputStream inputStream, int numBytesToRead) throws Exception {
+        public synchronized byte[] ReadBytesFromInputStream(InputStream inputStream, int numBytesToRead) throws Exception {
           byte[] msgBytes = new byte[numBytesToRead];
           int numUnreadBytes = numBytesToRead;
 
@@ -471,6 +471,7 @@ public class peerProcess{
         
         public void run(){  //gets called when we do .start() on the thread
           // Don't send bitfield if the process owner doesn't have the file.
+          /* 
           if (hasFile) {
             SendBitfield();
           }
@@ -521,8 +522,9 @@ public class peerProcess{
 
           } catch (Exception e) {
             System.err.println(e.getMessage());
-          }
-        }
+          } */
+          while(true){}
+        } 
         //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection
     }
 
@@ -587,7 +589,6 @@ public class peerProcess{
                     myFileManager = new fileManager(Integer.toString(id), filename, fileSize, pieceSize, hasFile);
 
                     // Initialize process owner bitfield.
-                    initializeBitfield(hasFile);
                 }
                 //get our port number from the file, if we have the file
                 //we don't care about our hostname, we're running on this machine
