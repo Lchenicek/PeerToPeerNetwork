@@ -58,6 +58,7 @@ public class peerProcess{
         private static Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();; // Records whether a handshake has been successfully sent/received between connected peers.
         byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
 
+        // Client connection.
         public peerConnection(peerInfo info){ //constructor for if this peer is connecting to another peer. we make the socket
             peerId = info.id;
             try{
@@ -135,6 +136,7 @@ public class peerProcess{
             }
         }      
 
+        // Server connection.
         public peerConnection(Socket _connection, int _id){ //constructor for this peer got connection from another peer. we got the socket from the listener
             try{
                 connection = _connection;   //get socket from listener
@@ -605,46 +607,25 @@ public class peerProcess{
 
         threads = new Vector<peerConnection>();
 
-        try {
-          ServerSocket listener = new ServerSocket(port); // Stores server socket.
-          Socket connectionSocket = null; // Stores connection socket.
-          int numPeers = peers.size(); // Stores number of available peers.
-          peerInfo currentPeer; // Stores current peer.
-          boolean isEarlierPeer; // Flag for earlier peers.
-          boolean isLaterPeer; // Flag for later peers.
+        for(int i = 0; i < earlierPeers; i++){
+          peerConnection peerConn = new peerConnection(peers.elementAt(i));     //make the thread to connect to the earlier peers
+          peerConn.start();
+          threads.add(peerConn);
+        }
 
-          for (int i = 0; i < numPeers; i++) {
-            currentPeer = peers.elementAt(i);
-            isEarlierPeer = currentPeer.id < id;
-            isLaterPeer = currentPeer.id > id; 
-
-            // Create and start server connection with later peers.
-            if (isLaterPeer) {
-              connectionSocket = listener.accept();
-              peerConnection currentPeerConnection = new peerConnection(connectionSocket, currentPeer, true);
-              currentPeerConnection.start();
-
-              // Store connection among process' threads.
-              threads.add(currentPeerConnection);
+        try{
+            ServerSocket listener = new ServerSocket(port);
+            for(int i = 0; i < peers.size() - earlierPeers; i++){   //we're awaiting connections from total peers - earlier peers others
+                peerConnection peerConn = new peerConnection(listener.accept(), peers.elementAt(i + earlierPeers).id);   //this assumes peers connect in order, they might not. fix?
+                peerConn.start();
+                threads.add(peerConn);
             }
-            // Create and start client connection with earlier peers.
-            else if (isEarlierPeer) {
-              connectionSocket = new Socket(currentPeer.hostname, currentPeer.port);
-              peerConnection currentPeerConnection = new peerConnection(connectionSocket, currentPeer, false);
-              currentPeerConnection.start();
-
-              // Store connection among process' threads.
-              threads.add(currentPeerConnection);
-            }
-          }
-
-          // Close accepted server socket.
-          listener.close(); // don't need any more server connections
+            listener.close();   //don't need any more server connections
 
         } catch (IOException e){
-            System.err.println("Could not start listener");
-            System.exit(-1);
-        }   //it's kind of nice java doesn't let you leave exceptions unhandled but this is getting annoying
+              System.err.println("Could not start listener");
+              System.exit(-1);
+          }   //it's kind of nice java doesn't let you leave exceptions unhandled but this is getting annoying
 
     }
 
