@@ -83,9 +83,7 @@ public class peerProcess {
         ReceiveHandshake();
 
         // Next send bitfield
-        String bitfieldPayload = myBitfield.getMessagePayload();
-        message bitfieldMsg = new message(bitfieldPayload.length(), message.MessageType.bitfield, bitfieldPayload);
-        send.write(bitfieldMsg);
+        SendBitfield();
         String response = recv.read();
         System.out.println("Recieved bitfield response: " + response);
 
@@ -154,9 +152,7 @@ public class peerProcess {
         // Bitfield
         String bitfieldMsg = recv.read();
         System.out.println("Received bitfield: " + bitfieldMsg);
-        String bitfieldPayload = myBitfield.getMessagePayload();
-        message bitfieldResponse = new message(bitfieldPayload.length(), message.MessageType.bitfield, bitfieldPayload);
-        send.write(bitfieldResponse);
+        SendBitfield();
 
         // Process bitfield response
         ArrayList<Integer> desiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
@@ -225,8 +221,25 @@ public class peerProcess {
         if (!message.isValidHandshake(handshake, this.peerId)) {
           // FIXME: what to do when handshake is invalid?
           // Threw exception for now.
-          throw new Exception("Invalid handshake! Received " + handshake + " from " + Integer.toString(this.peerId) + "\n");
+          throw new Exception(
+              "Invalid handshake! Received " + handshake + " from " + Integer.toString(this.peerId) + "\n");
         }
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+    public void SendBitfield() {
+      try {
+        // Get process owner's bitfield.
+        String bitfieldPayload = myBitfield.getMessagePayload();
+
+        // Create bitfield message.
+        message bitfieldMsg = new message(bitfieldPayload.length(), message.MessageType.bitfield, bitfieldPayload);
+
+        // Send bitfield message to connected peer.
+        send.write(bitfieldMsg);
+
       } catch (Exception e) {
         e.printStackTrace();
       }
