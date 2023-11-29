@@ -33,6 +33,8 @@ public class peerProcess {
   Semaphore fileManagerSemaphor = new Semaphore(1);
   // we should probably have a binary semaphore for writing to the file
 
+  ArrayList<Integer> outstandingPieceRequests = new ArrayList<>(); //Represents pieces we've already requested
+
   // Semaphors cuz threading
   ArrayList<Integer> peersInterested = new ArrayList<>(); // Peers interested in our data
   Semaphore semPeersInterested = new Semaphore(1); // Semaphor for above data
@@ -60,12 +62,11 @@ public class peerProcess {
     private int peerId;
     private Socket connection;
     ArrayList<Integer> iDesiredPieces; // Indices of pieces that the process owner needs.
-    bitfield peerBitfield;
 
     // Records whether a handshake has been successfully sent/received between
     // connected peers.
     private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();
-    byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
+    String bitfieldMsg; // Bitfield of pieces contained by the connected peer.
 
     // Client connectipon
     public peerConnection(peerInfo info) { // constructor for if this peer is connecting to another peer. we make the
@@ -213,11 +214,11 @@ public class peerProcess {
     public void ReceiveBitfield() {
       try {
         // Read bitfield message from connected peer.
-        String bitfieldMsg = recv.read();
+        bitfieldMsg = recv.read();
 
         // Print message for debugging.
         System.out.println("Received bitfield: " + bitfieldMsg);
-        peerBitfield = new bitfield(bitfieldMsg);
+
         // TODO: I assume we'll have to keep track of desiredBits (it'd probably need a
         // semaphor)
         // Determine if connected peer has pieces that the process owner needs.
@@ -693,65 +694,107 @@ public class peerProcess {
         }
       }
 
+      public void sendPieceToPeer(int piece) {
+        try {
+          // getPeerConnection(peer).send.sendMessage("test");
+          // If we have the file, send some data to the peer we selected
+          fileManagerSemaphor.acquire();
+          byte[] onePiece = myFileManager.readData(piece, 1); // The one piece is real
+          fileManagerSemaphor.release();
+          String msgPayload = new String(onePiece);
+          String indexBinary = Integer.toString(piece);
+          for (int i = indexBinary.length(); i < 4; ++i) {
+            indexBinary = "0" + indexBinary;
+          }
+          msgPayload = indexBinary + msgPayload;
+          message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
+          send.sendMessage(pieceMsg);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+
+      public void requestPieceFromPeer() {
+        try {
+          Random rand = new Random();
+          int piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
+
+          message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
+          send.sendMessage(pieceRequest);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+
       public void run() {
         System.out.println("run begins");
-        int i = 0; // FIXME: the reading system
-        while (true) {
-          try {
-            //Process only piece messages in order rn
-            String piece = read();
+        while(true){
+            try {
+                //Process only piece messages in order rn
+                String piece = read();
 
-            //converts it to an int
-            int msgType = piece.charAt(4) - '0';
-            switch (msgType) {
-              case 0:
-                System.out.println("Received choke");
-                break;
-              case 1:
-                System.out.println("Received unchoke");
-                break;
-              case 2:
-                System.out.println("Received interested");
-                break;
-              case 3:
-                System.out.println("Received not interested");
-                break;
-              case 4:
-                System.out.println("Received have");
-                break;
-              case 5:
-                System.out.println("Received bitfield");
-                break;
-              case 6:
-                System.out.println("Received request");
-                break;
-              case 7:
-                //System.out.println("Received piece");
+                //converts it to an int
+                int msgType = piece.charAt(4) - '0';
+                switch (msgType) {
+                    case 0:
+                        System.out.println("Received choke");
+                        break;
+                    case 1:
+                        System.out.println("Received unchoke");
+                        break;
+                    case 2:
+                        System.out.println("Received interested");
+                        break;
+                    case 3:
+                        System.out.println("Received not interested");
+                        break;
+                    case 4:
+                        System.out.println("Received have");
+                        break;
+                    case 5:
+                        System.out.println("Received bitfield");
+                        break;
+                    case 6:
+                        //System.out.println("Received request");
+                        //Process request
+                        String requestPieceString = piece.substring(5);
+                        sendPieceToPeer(Integer.parseInt(requestPieceString));
+                        break;
+                    case 7:
+                        //System.out.println("Received piece");
 
-                fileManagerSemaphor.acquire();
-                String pieceIndexString = piece.substring(5, 9);
-                int pieceIndex = Integer.parseInt(pieceIndexString);
-                String msgPayload = piece.substring(9);
-                myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
-                Log.downloadPiece(1001, pieceIndex, pieceIndex);
-                if (pieceIndex == pieceCount - 1) {
-                  //On the last iteration
-                  myFileManager.writeToFile();
-                  Log.completeDownload();
-                  System.out.println("Finished Reading File");
+                        fileManagerSemaphor.acquire();
+                        String pieceIndexString = piece.substring(5, 9);
+                        int pieceIndex = Integer.parseInt(pieceIndexString);
+                        String msgPayload = piece.substring(9);
+                        myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
+                        myBitfield.addPiece(pieceIndex);
+                        iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
+                        outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
+                        Log.downloadPiece(1001, pieceIndex, pieceIndex);
+                        if (myBitfield.fileComplete()) {
+                            //On the last iteration
+                            myFileManager.writeToFile();
+                            Log.completeDownload();
+                            System.out.println("Finished Reading File");
+                        }
+                        else {
+                            //If not done, request another piece
+                            requestPieceFromPeer();
+                        }
+                        fileManagerSemaphor.release();
+
+
+                        break;
+
                 }
-                fileManagerSemaphor.release();
-
-                break;
-
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
-          } catch (InterruptedException e) {
-            e.printStackTrace();
           }
         }
       }
     }
-  }
 
   public peerProcess(String _id) {
     id = Integer.parseInt(_id);
@@ -933,6 +976,15 @@ public class peerProcess {
     }
   }
 
+  public void requestPieceFromPeer(peerConnection pC, int piece) {
+    try {
+      message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
+      pC.send.sendMessage(pieceRequest);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
       System.err.println("You must specify an id and nothing more");
@@ -941,12 +993,12 @@ public class peerProcess {
     peerProcess Peer = new peerProcess(args[0]); // I think this is how to construct in java it has been a moment
     // TODO: the actual server stuff at the moment (currently only executes once we
     // have 3 peers, is this intended?)
+    Random rand = new Random();
 
     int selectedPeer = -1;
     if (Peer.hasFile) {
       // If we have the file, select neighbors randomly (should be # of connections,
       // only selecting 1 for testing)
-      Random rand = new Random();
       try {
         // Get the data
         Peer.semPeersInterested.acquire();
@@ -962,6 +1014,18 @@ public class peerProcess {
 
     }
 
+    if (!Peer.hasFile) {
+      for (Map.Entry<Integer, peerConnection> entry : Peer.peerConnections.entrySet()) {
+        // key is id and value is connection
+        if (entry.getValue().iDesiredPieces.size() > 0) {
+          Peer.fileManagerSemaphor.acquire();
+          int pieceToRequest = entry.getValue().iDesiredPieces.get(rand.nextInt(entry.getValue().iDesiredPieces.size()));
+          Peer.fileManagerSemaphor.release();
+          Peer.requestPieceFromPeer(entry.getValue(), pieceToRequest);
+        }
+      }
+    }
+
     int i = 0;
     // Should go right before loop
     long lastRecalc = System.currentTimeMillis();
@@ -972,24 +1036,17 @@ public class peerProcess {
         System.out.println("Recalculate top downloaders");
         lastRecalc = System.currentTimeMillis();
       }
-      // FIXME: Currently just implemented to send one peer all the data
-      /*
-       * I figure we can break up the sending data into three steps:
-       * 1. Sending all the data to 1 peer
-       * 2. Having all peers communicate with each other (1001 starts sending to 1002
-       * and 1003 while 1002 and 1003 communicate too)
-       * 3. Implement choking and peer download recalculation
-       * This is currently just step 1
-       */
+
       // Peer who has file
-      // FIXME (Post Checkin): move this into the threads
+      /*
       if (Peer.hasFile && i < Peer.pieceCount) {
         Peer.sendPieceToPeer(selectedPeer, i);
         i = i + 1;
         if (i == Peer.pieceCount) {
           System.out.println("Finished Sending File");
         }
-      } // Peer who doesn't have file
+      }
+       */
     }
     // will need to use threads (barf)
   }
