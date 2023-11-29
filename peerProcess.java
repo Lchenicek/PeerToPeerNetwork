@@ -74,8 +74,6 @@ public class peerProcess {
         out.flush(); // not sure why we need to flush it right away? sample does. guess it's good
                      // practive
         in = new ObjectInputStream(connection.getInputStream());
-        // TODO: i'm not entirely sure. umm. the handshake? I don't think that should be
-        // in our constructor though
 
         SendHandshake();
 
@@ -83,9 +81,7 @@ public class peerProcess {
         String response;
 
         // Next send bitfield
-        String bitfieldPayload = myBitfield.getMessagePayload();
-        message bitfieldMsg = new message(bitfieldPayload.length(), message.MessageType.bitfield, bitfieldPayload);
-        out.writeObject(bitfieldMsg.getMessage());
+        SendBitfield();
         response = (String) in.readObject();
         System.out.println("Recieved bitfield response: " + response);
 
@@ -153,9 +149,7 @@ public class peerProcess {
         // Bitfield
         String bitfieldMsg = (String) in.readObject();
         System.out.println("Received bitfield: " + bitfieldMsg);
-        String bitfieldPayload = myBitfield.getMessagePayload();
-        message bitfieldResponse = new message(bitfieldPayload.length(), message.MessageType.bitfield, bitfieldPayload);
-        out.writeObject(bitfieldResponse.getMessage());
+        SendBitfield();
 
         // Process bitfield response
         ArrayList<Integer> desiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
@@ -283,18 +277,18 @@ public class peerProcess {
       }
     }
 
-    public synchronized void SendBitfield() {
+    public void SendBitfield() {
       try {
-        int payloadLength = processOwnerBitfield.length;
+        // Get process owner bitfield.
+        String bitfieldPayload = myBitfield.getMessagePayload();
 
         // Create bitfield message.
-        message bitfieldMsg = new message(payloadLength, message.MessageType.bitfield, processOwnerBitfield);
+        message bitfieldMsg = new message(bitfieldPayload.length(), message.MessageType.bitfield, bitfieldPayload);
 
-        // Send bitfield message to peer.
-        out.write(bitfieldMsg.getMessageBytes());
-        out.flush();
+        // Send bitfield message to connected peer.
+        out.writeObject(bitfieldMsg.getMessage());
       } catch (Exception e) {
-        System.err.println(e.getMessage());
+        e.printStackTrace();
       }
     }
 
