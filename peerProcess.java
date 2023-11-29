@@ -60,8 +60,9 @@ public class peerProcess {
     private int peerId;
     private Socket connection;
 
-    // Records whether a handshake has been successfully sent/received between connected peers.
-    private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>(); 
+    // Records whether a handshake has been successfully sent/received between
+    // connected peers.
+    private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();
     byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
 
     // Client connectipon
@@ -77,10 +78,7 @@ public class peerProcess {
         send = new peerConnectionSend(connection);
         recv = new peerConnectionReceive(connection);
 
-        // Create handshake
-        message handshake = new message(32, message.MessageType.handshake, Integer.toString(id));
-        // Send message
-        send.write(handshake);
+        SendHandshake();
         String response = recv.read();
         System.out.println("Recieved handshake response: " + response);
 
@@ -158,8 +156,7 @@ public class peerProcess {
         // Handshake
         String handshake = recv.read();
         System.out.println("Received handshake: " + handshake);
-        message handshakeResponse = new message(32, message.MessageType.handshake, Integer.toString(id));
-        send.write(handshakeResponse);
+        SendHandshake();
 
         // Verify handshake
         if (!message.isValidHandshake(handshake, _id)) {
@@ -209,6 +206,23 @@ public class peerProcess {
 
       } catch (InterruptedException e) {
         System.err.println("Semaphor related error most likely" + e);
+      }
+    }
+
+    public void SendHandshake() {
+      try {
+        // Create handshake message.
+        message handshakeResponse = new message(32, message.MessageType.handshake, Integer.toString(id));
+
+        // Send handshake message to connected peer.
+        send.write(handshakeResponse);
+
+        // Record handshake sent.
+        // handshakeSuccessStatus.put(peerId, false);
+        // System.out.println("Success! Peer " + id + " sent handshake to peer " +
+        // peerId);
+      } catch (Exception e) {
+        e.printStackTrace();
       }
     }
 
@@ -301,27 +315,6 @@ public class peerProcess {
       }
 
       /*
-       * public synchronized void SendHandshake() throws Exception {
-       * synchronized (handshakeSuccessStatus) {
-       * try {
-       * // Create handshake.
-       * message handshake = new message(32, message.MessageType.handshake,
-       * Integer.toString(id));
-       * 
-       * // Write and send handshake to peer.
-       * out.writeObject(handshake.getMessage());
-       * out.flush();
-       * } catch (Exception e) {
-       * System.err.println(e.getMessage());
-       * }
-       * 
-       * // Record handshake sent.
-       * handshakeSuccessStatus.put(peerId, false);
-       * System.out.println("Success! Peer " + peerId + " sent handshake to peer " +
-       * id);
-       * }
-       * }
-       * 
        * public synchronized void ReceiveHandshake() throws Exception {
        * try {
        * byte[] handshakeBytes = new byte[32];
