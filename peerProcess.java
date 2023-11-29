@@ -750,7 +750,6 @@ public class peerProcess {
         }
       }
     }
-  }
 
   public peerProcess(String _id) {
     id = Integer.parseInt(_id);
