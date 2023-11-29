@@ -603,6 +603,7 @@ public class peerProcess{
                         //On the last iteration
                         myFileManager.writeToFile();
                         Log.completeDownload();
+                        System.out.println("Finished Reading File");
                     }
                     fileManagerSemaphor.release();
                 } catch (InterruptedException e) {
@@ -805,6 +806,9 @@ public class peerProcess{
             if (Peer.hasFile && i < Peer.pieceCount) {
                 Peer.sendPieceToPeer(selectedPeer, i);
                 i = i + 1;
+                if (i == Peer.pieceCount) {
+                    System.out.println("Finished Sending File");
+                }
             } //Peer who doesn't have file
         }
         //will need to use threads (barf)
