@@ -60,6 +60,7 @@ public class peerProcess {
     private int peerId;
     private Socket connection;
     ArrayList<Integer> iDesiredPieces; // Indices of pieces that the process owner needs.
+    bitfield peerBitfield;
 
     // Records whether a handshake has been successfully sent/received between
     // connected peers.
@@ -216,7 +217,7 @@ public class peerProcess {
 
         // Print message for debugging.
         System.out.println("Received bitfield: " + bitfieldMsg);
-
+        peerBitfield = new bitfield(bitfieldMsg);
         // TODO: I assume we'll have to keep track of desiredBits (it'd probably need a
         // semaphor)
         // Determine if connected peer has pieces that the process owner needs.
