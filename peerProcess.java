@@ -67,6 +67,7 @@ public class peerProcess {
     // connected peers.
     private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();
     String bitfieldMsg; // Bitfield of pieces contained by the connected peer.
+    bitfield peerBitfield;
 
     // Client connectipon
     public peerConnection(peerInfo info) { // constructor for if this peer is connecting to another peer. we make the
@@ -215,7 +216,7 @@ public class peerProcess {
       try {
         // Read bitfield message from connected peer.
         bitfieldMsg = recv.read();
-
+        peerBitfield = new bitfield(bitfieldMsg);
         // Print message for debugging.
         System.out.println("Received bitfield: " + bitfieldMsg);
 
@@ -771,8 +772,8 @@ public class peerProcess {
                         myBitfield.addPiece(pieceIndex);
                         iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
-                        Log.downloadPiece(1001, pieceIndex, pieceIndex);
-                        if (myBitfield.fileComplete()) {
+                        Log.downloadPiece(peerId, pieceIndex, myBitfield.getPieceCount());
+                        if (myBitfield.hasFile()) {
                             //On the last iteration
                             myFileManager.writeToFile();
                             Log.completeDownload();
