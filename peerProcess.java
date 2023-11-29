@@ -732,6 +732,7 @@ public class peerProcess {
                 int pieceIndex = Integer.parseInt(pieceIndexString);
                 String msgPayload = piece.substring(9);
                 myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
+                myBitfield.addPiece(pieceIndex);
                 Log.downloadPiece(peerId, pieceIndex, myBitfield.getPieceCount());
                 if (myBitfield.hasFile()) {
                   //On the last iteration
