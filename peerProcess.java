@@ -67,7 +67,6 @@ public class peerProcess {
     // Records whether a handshake has been successfully sent/received between
     // connected peers.
     private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();
-    byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
     String bitfieldMsg; // Bitfield of pieces contained by the connected peer.
 
     // Client connectipon
