@@ -31,9 +31,10 @@ public class peerProcess {
   private static byte[] processOwnerBitfield; // Bitfield of pieces contained by the process owner.
   fileManager myFileManager;
   Semaphore fileManagerSemaphor = new Semaphore(1);
+  Semaphore requestPieceSemaphore = new Semaphore(1);
   // we should probably have a binary semaphore for writing to the file
 
-  ArrayList<Integer> outstandingPieceRequests = new ArrayList<>(); //Represents pieces we've already requested
+  Set<Integer> outstandingPieceRequests = new HashSet<Integer>(); //Represents pieces we've already requested
 
   // Semaphors cuz threading
   ArrayList<Integer> peersInterested = new ArrayList<>(); // Peers interested in our data
@@ -717,8 +718,25 @@ public class peerProcess {
 
       public void requestPieceFromPeer() {
         try {
+          if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
+            return;
+          }
+          //if there are current as many outstanding request as there are missing pieces, there's nothing to request
           Random rand = new Random();
-          int piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
+
+          requestPieceSemaphore.acquire();
+          boolean lookingForPiece = true;
+          int piece = -1;
+          while(lookingForPiece){
+            piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
+            if(!outstandingPieceRequests.contains(piece)){
+               lookingForPiece = false;
+               outstandingPieceRequests.add(piece);
+            }
+            //if the index we generated isn't current being request, add it to outgoing requests and request it
+          }
+          requestPieceSemaphore.release();
+          //make sure the piece we're requesting isn't already in flight
 
           message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
           send.sendMessage(pieceRequest);
@@ -764,26 +782,29 @@ public class peerProcess {
                     case 7:
                         //System.out.println("Received piece");
 
-                        fileManagerSemaphor.acquire();
                         String pieceIndexString = piece.substring(5, 9);
                         int pieceIndex = Integer.parseInt(pieceIndexString);
                         String msgPayload = piece.substring(9);
+                        fileManagerSemaphor.acquire();
                         myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
                         myBitfield.addPiece(pieceIndex);
+                        fileManagerSemaphor.release();
                         iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
-                        Log.downloadPiece(peerId, pieceIndex, myBitfield.getPieceCount());
+                        Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
                         if (myBitfield.hasFile()) {
                             //On the last iteration
+                            fileManagerSemaphor.acquire();
                             myFileManager.writeToFile();
                             Log.completeDownload();
                             System.out.println("Finished Reading File");
+                            fileManagerSemaphor.release();
                         }
                         else {
                             //If not done, request another piece
                             requestPieceFromPeer();
                         }
-                        fileManagerSemaphor.release();
+                        
 
 
                         break;

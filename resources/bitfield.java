@@ -56,7 +56,7 @@ public class bitfield {
         //little overhead to avoid issues with dupes
     }
 
-    public int getPieceCount(){
+    public int getOwnedPieces(){
         return ownedPieces;
     }
 
