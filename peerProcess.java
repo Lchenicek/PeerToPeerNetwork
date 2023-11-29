@@ -762,14 +762,17 @@ public class peerProcess {
                         System.out.println("Received unchoke");
                         break;
                     case 2:
-                        System.out.println("Received interested");
+                        //System.out.println("Received interested");
+                        Log.receiveInterestedMessage(peerId);
                         break;
                     case 3:
-                        System.out.println("Received not interested");
+                        Log.receiveNotInterestedMessage(peerId);
+                        //System.out.println("Received not interested");
                         break;
                     case 4:
-                        System.out.println("Received have");
+                        //System.out.println("Received have");
                         int haveIndex = Integer.parseInt(piece.substring(5));
+                        Log.receiveHaveMessage(peerId, haveIndex);
                         boolean interestingPiece = !myBitfield.hasPiece(haveIndex); //if we don't have it, it's interesting
                         if(interestingPiece){
                             send.sendMessage(new message(5, message.MessageType.interested, ""));
