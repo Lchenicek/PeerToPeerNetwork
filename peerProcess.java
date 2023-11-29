@@ -937,8 +937,18 @@ public class peerProcess {
     }
   }
 
-  public void requestPieceFromPeer(int peer, int piece) {
+  public void requestPieceFromPeer(peerConnection pC, int piece) {
+    try {
+      fileManagerSemaphor.acquire();
+      System.out.println("Interested in piece:");
+      System.out.println(piece);
+      fileManagerSemaphor.release();
 
+      message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
+      pC.send.sendMessage(pieceRequest);
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
   }
 
   public static void main(String[] args) throws Exception {
@@ -975,14 +985,8 @@ public class peerProcess {
         // key is id and value is connection
         System.out.println(entry.getValue().iDesiredPieces);
         if (entry.getValue().iDesiredPieces.size() > 0) {
-          Peer.fileManagerSemaphor.acquire();
-          int pieceToRequest = entry.getValue().iDesiredPieces.get(rand.nextInt(entry.getValue().iDesiredPieces.size()));
-          System.out.println("Interested in piece:");
-          System.out.println(pieceToRequest);
-          Peer.fileManagerSemaphor.release();
-
-          message pieceRequest = new message(32, message.MessageType.request, Integer.toString(pieceToRequest));
-          entry.getValue().send.sendMessage(pieceRequest);
+          int pieceToRequest = rand.nextInt(entry.getValue().iDesiredPieces.size());
+          Peer.requestPieceFromPeer(entry.getValue(), pieceToRequest);
         }
       }
     }
