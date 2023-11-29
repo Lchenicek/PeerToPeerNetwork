@@ -59,6 +59,7 @@ public class peerProcess {
 
     private int peerId;
     private Socket connection;
+    ArrayList<Integer> iDesiredPieces; // Indices of pieces that the process owner needs.
 
     // Records whether a handshake has been successfully sent/received between
     // connected peers.
@@ -78,23 +79,17 @@ public class peerProcess {
         send = new peerConnectionSend(connection);
         recv = new peerConnectionReceive(connection);
 
-        // Handshake.
+        // Handshake exchange.
         SendHandshake();
         ReceiveHandshake();
 
-        // Next send bitfield
+        // Bitfield exchange.
         SendBitfield();
-        String response = recv.read();
-        System.out.println("Recieved bitfield response: " + response);
-
-        // Process bitfield response
-        ArrayList<Integer> desiredPieces = myBitfield.processBitfieldMessage(response);
-        // TODO: I assume we'll have to keep track of desiredBits (it'd probably need a
-        // semaphor)
+        ReceiveBitfield();
 
         // Send interest message
         // TODO: do something with level of interest
-        if (desiredPieces.isEmpty()) {
+        if (iDesiredPieces.isEmpty()) {
           message notInterestedMsg = new message(0, message.MessageType.notInterested);
           send.write(notInterestedMsg);
         } else {
@@ -145,23 +140,17 @@ public class peerProcess {
         recv = new peerConnectionReceive(connection);
         System.out.println("Connection received from peer " + Integer.toString(peerId) + " successfully!");
 
-        // Handshake.
+        // Handshake exchange.
         ReceiveHandshake();
         SendHandshake();
 
-        // Bitfield
-        String bitfieldMsg = recv.read();
-        System.out.println("Received bitfield: " + bitfieldMsg);
+        // Bitfield exchange.
+        ReceiveBitfield();
         SendBitfield();
-
-        // Process bitfield response
-        ArrayList<Integer> desiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
-        // TODO: I assume we'll have to keep track of desiredBits (it'd probably need a
-        // semaphor)
 
         // Send interest message
         // TODO: do something with level of interest
-        if (desiredPieces.isEmpty()) {
+        if (iDesiredPieces.isEmpty()) {
           message notInterestedMsg = new message(0, message.MessageType.notInterested);
           send.write(notInterestedMsg);
         } else {
@@ -239,6 +228,27 @@ public class peerProcess {
 
         // Send bitfield message to connected peer.
         send.write(bitfieldMsg);
+
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+    public void ReceiveBitfield() {
+      try {
+        // Read bitfield message from connected peer.
+        String bitfieldMsg = recv.read();
+
+        // Print message for debugging.
+        System.out.println("Received bitfield: " + bitfieldMsg);
+
+        // TODO: I assume we'll have to keep track of desiredBits (it'd probably need a semaphor)
+        // Determine if connected peer has pieces that the process owner needs.
+        /* NOTE: Due to implementation of "processBitfieldMessage()",
+         *       The indices are relative to entire bitfield message.
+         *       Therefore, index 5 corresponds to the index of first piece
+        */ 
+        iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
 
       } catch (Exception e) {
         e.printStackTrace();
