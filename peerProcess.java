@@ -265,22 +265,22 @@ public class peerProcess {
       System.out.println("Valid handshake received from peer " + this.peerId);
     }
 
-    public synchronized void SendHandshake() throws Exception {
-      synchronized (handshakeSuccessStatus) {
+    public void SendHandshake() throws Exception {
+      synchronized (out) {
         try {
           // Create handshake.
           message handshake = new message(32, message.MessageType.handshake, Integer.toString(id));
 
-          // Write and send handshake to peer.
+          // Send handshake to connected peer.
           out.writeObject(handshake.getMessage());
           out.flush();
         } catch (Exception e) {
-          System.err.println(e.getMessage());
+          e.printStackTrace();
         }
 
         // Record handshake sent.
-        handshakeSuccessStatus.put(this.peerId, false);
-        System.out.println("Success! Peer " + this.peerId + " sent handshake to peer " + id);
+        // handshakeSuccessStatus.put(this.peerId, false);
+        // System.out.println("Success! Peer " + this.peerId + " sent handshake to peer " + id);
       }
     }
 
