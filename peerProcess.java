@@ -153,7 +153,7 @@ public class peerProcess {
         out = new ObjectOutputStream(connection.getOutputStream());
         out.flush();
         in = new ObjectInputStream(connection.getInputStream());
-        System.out.println("Connection received from peer " + Integer.toString(id) + " successfully!");
+        System.out.println("Connection received from peer " + Integer.toString(peerId) + " successfully!");
 
         // Handshake
         String handshake = (String) in.readObject();
