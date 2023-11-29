@@ -87,10 +87,10 @@ public class bitfield {
     }
 
     public ArrayList<Integer> processBitfieldMessage(String bitfieldMsg) {
-        int msgSize = (Integer.parseInt(bitfieldMsg.substring(0, 4)) * 8);  //convert size to bits
+        //int msgSize = (Integer.parseInt(bitfieldMsg.substring(0, 4)) * 8);  //convert size to bits
         ArrayList<Integer> intrestingBits = new ArrayList<>();
         //We start at 5 because 0-3 is the size, 4 is the type and 5-msgSize is payload
-        for (int i = 5; i < msgSize; ++i) {
+        for (int i = 5; i < bitfieldMsg.length(); ++i) {
             //This only works because we know the size of the payload and Array list are the same
             try{
                 if (bitfieldMsg.charAt(i) == '1' && !pieces.get(i - 5)) {
