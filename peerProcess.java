@@ -79,14 +79,8 @@ public class peerProcess {
 
         SendHandshake();
 
-        String response = (String) in.readObject();
-        System.out.println("Recieved handshake response: " + response);
-
-        // Verify handshake
-        if (!message.isValidHandshake(response, info.id)) {
-          // FIXME: what to do when handshake is invalid?
-          System.out.println("Invalid handshake!");
-        }
+        ReceiveHandshake();
+        String response;
 
         // Next send bitfield
         String bitfieldPayload = myBitfield.getMessagePayload();
@@ -152,17 +146,9 @@ public class peerProcess {
         in = new ObjectInputStream(connection.getInputStream());
         System.out.println("Connection received from peer " + Integer.toString(peerId) + " successfully!");
 
-        // Handshake
-        String handshake = (String) in.readObject();
-        System.out.println("Received handshake: " + handshake);
+        ReceiveHandshake();
 
         SendHandshake();
-
-        // Verify handshake
-        if (!message.isValidHandshake(handshake, _id)) {
-          // FIXME: what to do when handshake is invalid?
-          System.out.println("Invalid handshake!");
-        }
 
         // Bitfield
         String bitfieldMsg = (String) in.readObject();
@@ -281,36 +267,19 @@ public class peerProcess {
       }
     }
 
-    public synchronized void ReceiveHandshake() throws Exception {
+    public void ReceiveHandshake() {
       try {
-        byte[] handshakeBytes = new byte[32];
-        int bytesRead = in.read(handshakeBytes, 0, 32);
+        // Read handshake from connected peer.
+        String handshake = (String) in.readObject();
+        System.out.println("Received handshake: " + handshake);
 
-        if (bytesRead == -1) {
-          throw new Exception("Handshake bytes not received. Read -1 bytes from input stream");
+        // Validate handshake.
+        if (!message.isValidHandshake(handshake, this.peerId)) {
+          throw new Exception("Invalid handshake received from peer " + this.peerId);
         }
 
-        String handshakeStr = new String(handshakeBytes);
-        ValidateHandshake(handshakeStr);
-
-        // Record handshake receipt, if the client has a record of a previously sent
-        // handshake.
-        int handshakePeerID = Integer.parseInt(handshakeStr.substring(28, 32));
-        boolean peerHandshakeRecorded = handshakeSuccessStatus.containsKey(handshakePeerID);
-        boolean peerHandshakeReceived = handshakeSuccessStatus.get(handshakePeerID);
-
-        if (!peerHandshakeRecorded) {
-          throw new Exception(
-              "Failure! Tried to received handshake from peer " + handshakePeerID + " without peer sending one first");
-        } else if (peerHandshakeRecorded && peerHandshakeReceived) {
-          throw new Exception("Failure! Received duplicate handshake from peer " + handshakePeerID);
-        }
-
-        // Record successful handshake receipt.
-        handshakeSuccessStatus.put(handshakePeerID, true);
-        System.out.println("Success! Peer " + this.peerId + " received handshake from peer " + handshakePeerID);
       } catch (Exception e) {
-        System.err.println(e.getMessage());
+        e.printStackTrace();
       }
     }
 
