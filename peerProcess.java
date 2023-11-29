@@ -77,11 +77,8 @@ public class peerProcess {
         // TODO: i'm not entirely sure. umm. the handshake? I don't think that should be
         // in our constructor though
 
-        // Create handshake
-        message handshake = new message(32, message.MessageType.handshake, Integer.toString(id));
-        // Send message
-        out.writeObject(handshake.getMessage());
-        out.flush();
+        SendHandshake();
+
         String response = (String) in.readObject();
         System.out.println("Recieved handshake response: " + response);
 
@@ -158,8 +155,8 @@ public class peerProcess {
         // Handshake
         String handshake = (String) in.readObject();
         System.out.println("Received handshake: " + handshake);
-        message handshakeResponse = new message(32, message.MessageType.handshake, Integer.toString(id));
-        out.writeObject(handshakeResponse.getMessage());
+
+        SendHandshake();
 
         // Verify handshake
         if (!message.isValidHandshake(handshake, _id)) {
@@ -265,7 +262,7 @@ public class peerProcess {
       System.out.println("Valid handshake received from peer " + this.peerId);
     }
 
-    public void SendHandshake() throws Exception {
+    public void SendHandshake() {
       synchronized (out) {
         try {
           // Create handshake.
