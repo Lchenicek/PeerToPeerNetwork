@@ -980,6 +980,9 @@ public class peerProcess {
           System.out.println("Interested in piece:");
           System.out.println(pieceToRequest);
           Peer.fileManagerSemaphor.release();
+
+          message pieceRequest = new message(32, message.MessageType.request, Integer.toString(pieceToRequest));
+          entry.getValue().send.sendMessage(pieceRequest);
         }
       }
     }
