@@ -153,7 +153,7 @@ public class peerProcess {
         Log.receiveConnection(peerId);
         send = new peerConnectionSend(connection);
         recv = new peerConnectionReceive(connection);
-        System.out.println("Connection received from peer " + Integer.toString(id) + " successfully!");
+        System.out.println("Connection received from peer " + Integer.toString(peerId) + " successfully!");
 
         // Handshake
         String handshake = recv.read();
