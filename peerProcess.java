@@ -585,30 +585,57 @@ public class peerProcess{
 
       public void run(){
         System.out.println("run begins");
-        int i = 0; //FIXME: the reading system
         while(true){
-            if (i < pieceCount) {
-                try {
-                    //Process only piece messages in order rn
-                    String piece = read();
-                    //Right now we only pass pieces, so this only continues once we receive a piece
-                    fileManagerSemaphor.acquire();
-                    String pieceIndexString = piece.substring(5, 9);
-                    int pieceIndex = Integer.parseInt(pieceIndexString);
-                    String msgPayload = piece.substring(9);
-                    myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
-                    Log.downloadPiece(1001, i, i);
-                    i = i + 1;
-                    if (i == pieceCount) {
-                        //On the last iteration
-                        myFileManager.writeToFile();
-                        Log.completeDownload();
-                        System.out.println("Finished Reading File");
-                    }
-                    fileManagerSemaphor.release();
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+            try {
+                //Process only piece messages in order rn
+                String piece = read();
+
+                //converts it to an int
+                int msgType = piece.charAt(4) - '0';
+                switch (msgType) {
+                    case 0:
+                        System.out.println("Received choke");
+                        break;
+                    case 1:
+                        System.out.println("Received unchoke");
+                        break;
+                    case 2:
+                        System.out.println("Received interested");
+                        break;
+                    case 3:
+                        System.out.println("Received not interested");
+                        break;
+                    case 4:
+                        System.out.println("Received have");
+                        break;
+                    case 5:
+                        System.out.println("Received bitfield");
+                        break;
+                    case 6:
+                        System.out.println("Received request");
+                        break;
+                    case 7:
+                        //System.out.println("Received piece");
+
+                        fileManagerSemaphor.acquire();
+                        String pieceIndexString = piece.substring(5, 9);
+                        int pieceIndex = Integer.parseInt(pieceIndexString);
+                        String msgPayload = piece.substring(9);
+                        myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
+                        Log.downloadPiece(1001, pieceIndex, pieceIndex);
+                        if (pieceIndex == pieceCount - 1) {
+                            //On the last iteration
+                            myFileManager.writeToFile();
+                            Log.completeDownload();
+                            System.out.println("Finished Reading File");
+                        }
+                        fileManagerSemaphor.release();
+
+                        break;
+
                 }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
       }
@@ -802,7 +829,6 @@ public class peerProcess{
             This is currently just step 1
              */
             //Peer who has file
-            //FIXME (Post Checkin): move this into the threads
             if (Peer.hasFile && i < Peer.pieceCount) {
                 Peer.sendPieceToPeer(selectedPeer, i);
                 i = i + 1;
