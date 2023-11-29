@@ -717,7 +717,6 @@ public class peerProcess {
       public void requestPieceFromPeer() {
         try {
           Random rand = new Random();
-          System.out.println(iDesiredPieces);
           int piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
 
           message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
@@ -756,13 +755,13 @@ public class peerProcess {
                         System.out.println("Received bitfield");
                         break;
                     case 6:
-                        System.out.println("Received request");
+                        //System.out.println("Received request");
                         //Process request
                         String requestPieceString = piece.substring(5);
                         sendPieceToPeer(Integer.parseInt(requestPieceString));
                         break;
                     case 7:
-                        System.out.println("Received piece");
+                        //System.out.println("Received piece");
 
                         fileManagerSemaphor.acquire();
                         String pieceIndexString = piece.substring(5, 9);
@@ -781,7 +780,6 @@ public class peerProcess {
                         }
                         else {
                             //If not done, request another piece
-                            System.out.println("Requesting New Piece");
                             requestPieceFromPeer();
                         }
                         fileManagerSemaphor.release();
@@ -980,9 +978,6 @@ public class peerProcess {
 
   public void requestPieceFromPeer(peerConnection pC, int piece) {
     try {
-      System.out.println("Interested in piece:");
-      System.out.println(piece);
-
       message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
       pC.send.sendMessage(pieceRequest);
     } catch (Exception e) {
@@ -1022,7 +1017,6 @@ public class peerProcess {
     if (!Peer.hasFile) {
       for (Map.Entry<Integer, peerConnection> entry : Peer.peerConnections.entrySet()) {
         // key is id and value is connection
-        System.out.println(entry.getValue().iDesiredPieces);
         if (entry.getValue().iDesiredPieces.size() > 0) {
           Peer.fileManagerSemaphor.acquire();
           int pieceToRequest = entry.getValue().iDesiredPieces.get(rand.nextInt(entry.getValue().iDesiredPieces.size()));
