@@ -695,9 +695,7 @@ public class peerProcess {
 
       public void run() {
         System.out.println("run begins");
-        int i = 0; // FIXME: the reading system
         while (true) {
-
             // Process only piece messages in order rn
             String message = read();
             int messageType = Integer.parseInt(message.substring(4, 5));
@@ -712,8 +710,7 @@ public class peerProcess {
                   myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
                   myBitfield.addPiece(pieceIndex);
                   Log.downloadPiece(peerId, pieceIndex, myBitfield.getPieceCount());
-                  if (myBitfield.hasFile()) {
-                    // On the last iteration
+                  if (myBitfield.hasFile()) { // On the last iteration
                     myFileManager.writeToFile();
                     Log.completeDownload();
                     System.out.println("Finished Reading File");
