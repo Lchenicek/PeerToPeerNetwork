@@ -694,6 +694,26 @@ public class peerProcess {
         }
       }
 
+      public void sendPieceToPeer(int piece) {
+        try {
+          // getPeerConnection(peer).send.sendMessage("test");
+          // If we have the file, send some data to the peer we selected
+          fileManagerSemaphor.acquire();
+          byte[] onePiece = myFileManager.readData(piece, 1); // The one piece is real
+          fileManagerSemaphor.release();
+          String msgPayload = new String(onePiece);
+          String indexBinary = Integer.toString(piece);
+          for (int i = indexBinary.length(); i < 4; ++i) {
+            indexBinary = "0" + indexBinary;
+          }
+          msgPayload = indexBinary + msgPayload;
+          message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
+          send.sendMessage(pieceMsg);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+
       public void run() {
         System.out.println("run begins");
         while(true){
@@ -724,9 +744,12 @@ public class peerProcess {
                         break;
                     case 6:
                         System.out.println("Received request");
+                        //Process request
+                        String requestPieceString = piece.substring(5);
+                        sendPieceToPeer(Integer.parseInt(requestPieceString));
                         break;
                     case 7:
-                        //System.out.println("Received piece");
+                        System.out.println("Received piece");
 
                         fileManagerSemaphor.acquire();
                         String pieceIndexString = piece.substring(5, 9);
@@ -1001,17 +1024,9 @@ public class peerProcess {
         System.out.println("Recalculate top downloaders");
         lastRecalc = System.currentTimeMillis();
       }
-      // FIXME: Currently just implemented to send one peer all the data
-      /*
-       * I figure we can break up the sending data into three steps:
-       * 1. Sending all the data to 1 peer
-       * 2. Having all peers communicate with each other (1001 starts sending to 1002
-       * and 1003 while 1002 and 1003 communicate too)
-       * 3. Implement choking and peer download recalculation
-       * This is currently just step 1
-       */
+
       // Peer who has file
-      // FIXME (Post Checkin): move this into the threads
+      /*
       if (Peer.hasFile && i < Peer.pieceCount) {
         Peer.sendPieceToPeer(selectedPeer, i);
         i = i + 1;
@@ -1019,7 +1034,7 @@ public class peerProcess {
           System.out.println("Finished Sending File");
         }
       }
-
+       */
     }
     // will need to use threads (barf)
   }
