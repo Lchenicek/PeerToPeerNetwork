@@ -7,6 +7,8 @@ import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.Semaphore;
 
+import javax.crypto.spec.PBEKeySpec;
+
 import resources.*;
 
 
@@ -23,7 +25,7 @@ public class peerProcess{
     boolean hasFile;
     int port;
     Vector<peerInfo> peers; //just for construction. not the actual sockets or anything
-    Vector<peerConnection> threads; //store all threads
+    HashMap<Integer, peerConnection> peerConnections; 
     logger Log;
     bitfield myBitfield;
     private static byte[] processOwnerBitfield; // Bitfield of pieces contained by the process owner.
@@ -48,33 +50,33 @@ public class peerProcess{
     //simple little container for storing info until we make the connection. 
     //might be a bad way of going it, feel free to change
     //could be bad java but i'm bootlegging a struct
+    private class peerConnection {
 
-    private class peerConnection extends Thread{     //threads so 1 socket doesn't block connections to other peers
+    public peerConnectionSend send;
+    public peerConnectionReceive recv;
 
-        private int peerId; //is having this many variables named "id" getting confusing?
-        private Socket connection;
-        private ObjectInputStream in;   //read to socket
-        private ObjectOutputStream out; //write to socket. cribbing from sample code here
-        private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();; // Records whether a handshake has been successfully sent/received between connected peers.
-        byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
+    private int peerId;
+    private Socket connection;
 
-        // Client connection.
-        public peerConnection(peerInfo info){ //constructor for if this peer is connecting to another peer. we make the socket
+    private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();; // Records whether a handshake has been successfully sent/received between connected peers.
+    byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
+
+    //Client connectipon
+    public peerConnection(peerInfo info){ //constructor for if this peer is connecting to another peer. we make the socket
+          //even though these are just for sending, we send and receive in here, since I don't want to refactor and it's all set up already
+          //but it might be a good idea
             peerId = info.id;
             try{
                 connection = new Socket(info.hostname, info.port);  //connect to peer's server/listener socket
                 Log.startConnection(peerId);
-                out = new ObjectOutputStream(connection.getOutputStream());
-                out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
-                in = new ObjectInputStream(connection.getInputStream());
-                //TODO: i'm not entirely sure. umm. the handshake? I don't think that should be in our constructor though
+                send = new peerConnectionSend(connection);
+                recv = new peerConnectionReceive(connection);
 
                 //Create handshake
                 message handshake = new message(32, message.MessageType.handshake, Integer.toString(id));
                 //Send message
-                out.writeObject(handshake.getMessage());
-                out.flush();
-                String response = (String) in.readObject();
+                send.write(handshake);
+                String response = recv.read();
                 System.out.println("Recieved handshake response: " + response);
 
                 //Verify handshake
@@ -86,8 +88,8 @@ public class peerProcess{
                 //Next send bitfield
                 String bitfieldPayload = myBitfield.getMessagePayload();
                 message bitfieldMsg = new message(bitfieldPayload.length(), message.MessageType.bitfield,  bitfieldPayload);
-                out.writeObject(bitfieldMsg.getMessage());
-                response = (String) in.readObject();
+                send.write(bitfieldMsg);
+                response = recv.read();
                 System.out.println("Recieved bitfield response: " + response);
 
                 //Process bitfield response
@@ -98,15 +100,15 @@ public class peerProcess{
                 //TODO: do something with level of interest
                 if (desiredPieces.isEmpty()) {
                     message notInterestedMsg = new message(0, message.MessageType.notInterested);
-                    out.writeObject(notInterestedMsg.getMessage());
+                    send.write(notInterestedMsg);
                 }
                 else {
                     message interestedMsg = new message(0, message.MessageType.interested);
-                    out.writeObject(interestedMsg.getMessage());
+                    send.write(interestedMsg);
                 }
 
                 //Receive interest response
-                String interestResponse = (String) in.readObject();
+                String interestResponse = recv.read();
                 if (interestResponse.charAt(4) == '2') {
                     //Add interested peer to our list (mostly for peers with completed sets)
                     semPeersInterested.acquire();
@@ -120,6 +122,9 @@ public class peerProcess{
                     System.out.println("Peer not interested");
                     Log.receiveNotInterestedMessage(peerId);
                 }
+                
+                send.start();
+                recv.start();
 
             } catch (ConnectException e){
                 System.err.println("Connection refused. Server's not up. I think.");
@@ -136,22 +141,20 @@ public class peerProcess{
             }
         }      
 
-        // Server connection.
-        public peerConnection(Socket _connection, int _id){ //constructor for this peer got connection from another peer. we got the socket from the listener
+  public peerConnection(Socket _connection, int _id){ //constructor for this peer got connection from another peer. we got the socket from the listener
             try{
                 connection = _connection;   //get socket from listener
                 peerId = _id;
                 Log.receiveConnection(peerId);
-                out = new ObjectOutputStream(connection.getOutputStream());
-                out.flush();    
-                in = new ObjectInputStream(connection.getInputStream());
+                send = new peerConnectionSend(connection);  
+                recv = new peerConnectionReceive(connection);
                 System.out.println("Connection received from peer " + Integer.toString(id) + " successfully!");
 
                 //Handshake
-                String handshake = (String) in.readObject();
+                String handshake = recv.read();
                 System.out.println("Received handshake: " + handshake);
                 message handshakeResponse = new message(32, message.MessageType.handshake, Integer.toString(id));
-                out.writeObject(handshakeResponse.getMessage());
+                send.write(handshakeResponse);
 
                 //Verify handshake
                 if (!message.isValidHandshake(handshake, _id)) {
@@ -160,11 +163,11 @@ public class peerProcess{
                 }
 
                 //Bitfield
-                String bitfieldMsg = (String) in.readObject();
+                String bitfieldMsg = recv.read();
                 System.out.println("Received bitfield: " + bitfieldMsg);
                 String bitfieldPayload = myBitfield.getMessagePayload();
                 message bitfieldResponse = new message(bitfieldPayload.length(), message.MessageType.bitfield,  bitfieldPayload);
-                out.writeObject(bitfieldResponse.getMessage());
+                send.write(bitfieldResponse);
 
                 //Process bitfield response
                 ArrayList<Integer> desiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
@@ -174,15 +177,15 @@ public class peerProcess{
                 //TODO: do something with level of interest
                 if (desiredPieces.isEmpty()) {
                     message notInterestedMsg = new message(0, message.MessageType.notInterested);
-                    out.writeObject(notInterestedMsg.getMessage());
+                    send.write(notInterestedMsg);
                 }
                 else {
                     message interestedMsg = new message(0, message.MessageType.interested);
-                    out.writeObject(interestedMsg.getMessage());
+                    send.write(interestedMsg);
                 }
 
                 //Receive interest response
-                String interestResponse = (String) in.readObject();
+                String interestResponse = recv.read();
                 if (interestResponse.charAt(4) == '2') {
                     //Add interested peer to our list (mostly for peers with completed sets)
                     semPeersInterested.acquire();
@@ -197,18 +200,35 @@ public class peerProcess{
                     Log.receiveNotInterestedMessage(peerId);
                 }
 
-            } catch (IOException e){
-                System.err.println("IO error on establishing in/out streams");
-                System.exit(-1);
-            } catch (ClassNotFoundException e) {
-                System.err.println("I could not add the handshake line unless I added this catch ¯\\_(ツ)_/¯");
-                e.printStackTrace();
+               send.start();
+               recv.start();
+
             } catch (InterruptedException e) {
                 System.err.println("Semaphor related error most likely" + e);
             }
         }
 
-        public peerConnection(Socket connection, peerInfo peer, boolean isServer) {
+    private class peerConnectionSend extends Thread{     //threads so 1 socket doesn't block connections to other peers
+
+        private ObjectOutputStream out; //write to socket. cribbing from sample code here
+
+        public peerConnectionSend(Socket connection){
+          try{
+            out = new ObjectOutputStream(connection.getOutputStream());
+            out.flush();    //not sure why we need to flush it right away? sample does. guess it's good practive
+          } catch(Exception e){ System.err.println(e.getMessage());}
+        }
+
+        public void write(message m){
+          try{
+          out.writeObject(m.getMessage());
+          out.flush();
+          } catch (Exception e){System.err.println(e.getMessage());}
+        }
+        //used when something else tells this socket to write a message
+        //not sure how much it'll come up, but we need it for the constructor at least
+
+      /*   public peerConnectionSend(Socket connection, peerInfo peer, boolean isServer) {
           this.connection = connection;
           this.peerId = peer.id;
 
@@ -230,7 +250,7 @@ public class peerProcess{
           } catch (Exception e) {
             System.err.println(e.getMessage());
           }
-        }
+        } */
 
         public void ValidateHandshake(String handshake) throws Exception {
           if (handshake.length() != 32) {
@@ -248,13 +268,14 @@ public class peerProcess{
           }
 
           String handshakePeerID = handshake.substring(28, 32);
-          if (!handshakePeerID.equals(Integer.toString(this.peerId))) {
-            throw new Exception("Wrong handshake peer ID received!\n\tExpected: " + this.peerId + "\n\tReceived: " + handshakePeerID + "\n");
+          if (!handshakePeerID.equals(Integer.toString(peerId))) {
+            throw new Exception("Wrong handshake peer ID received!\n\tExpected: " + peerId + "\n\tReceived: " + handshakePeerID + "\n");
           }
 
-          System.out.println("Valid handshake received from peer " + this.peerId);
+          System.out.println("Valid handshake received from peer " + peerId);
         }
 
+        /* 
         public synchronized void SendHandshake() throws Exception {
           synchronized (handshakeSuccessStatus) {
             try {
@@ -269,8 +290,8 @@ public class peerProcess{
             }
 
             // Record handshake sent.
-            handshakeSuccessStatus.put(this.peerId, false);
-            System.out.println("Success! Peer " + this.peerId + " sent handshake to peer " + id);
+            handshakeSuccessStatus.put(peerId, false);
+            System.out.println("Success! Peer " + peerId + " sent handshake to peer " + id);
           }
         }
 
@@ -468,7 +489,11 @@ public class peerProcess{
 
           return msgBytes;
         }
-        
+        */
+
+        //This is a huge block of commented out code, but since I'm refactoring I'm just focused on getting it all working
+        //I'm pretty sure it's all duplicate
+
         public void run(){  //gets called when we do .start() on the thread
           // Don't send bitfield if the process owner doesn't have the file.
           /* 
@@ -528,6 +553,35 @@ public class peerProcess{
         //doesn't do anything right now, but without this here the process just dies as soon as it makes its last connection
     }
 
+    private class peerConnectionReceive extends Thread{
+      private ObjectInputStream in;   
+      //no outstream because this is just a reader
+
+      public peerConnectionReceive(Socket _connection){
+        try{
+          in = new ObjectInputStream(connection.getInputStream());
+        }    catch(Exception e){
+
+          System.err.println("Contructor error");
+          }
+      }
+
+      public String read(){
+        try{
+        return (String) in.readObject();
+        }catch (Exception e){
+          System.err.println(e.getMessage());
+          return "";  //need a return type always
+        }
+      }
+
+      public void run(){
+        System.out.println("run begins");
+        while(true){
+        }
+      }
+    }
+  }
     public peerProcess(String _id){
         id = Integer.parseInt(_id);
         Log = new logger(id);
@@ -606,20 +660,18 @@ public class peerProcess{
             System.exit(-1);
         }
 
-        threads = new Vector<peerConnection>();
+        peerConnections = new HashMap<Integer, peerConnection>();
 
         for(int i = 0; i < earlierPeers; i++){
           peerConnection peerConn = new peerConnection(peers.elementAt(i));     //make the thread to connect to the earlier peers
-          peerConn.start();
-          threads.add(peerConn);
+          peerConnections.put(peers.elementAt(i).id, peerConn);
         }
 
         try{
             ServerSocket listener = new ServerSocket(port);
             for(int i = 0; i < peers.size() - earlierPeers; i++){   //we're awaiting connections from total peers - earlier peers others
                 peerConnection peerConn = new peerConnection(listener.accept(), peers.elementAt(i + earlierPeers).id);   //this assumes peers connect in order, they might not. fix?
-                peerConn.start();
-                threads.add(peerConn);
+                peerConnections.put(peers.elementAt(i + earlierPeers).id, peerConn);
             }
             listener.close();   //don't need any more server connections
 
@@ -631,12 +683,8 @@ public class peerProcess{
     }
 
     public peerConnection getPeerConnection(int peerId) throws Exception {
-        for (int i = 0; i < threads.size(); ++i) {
-            if (threads.get(i).peerId == peerId) {
-                return threads.get(i);
-            }
-        }
-        throw new Exception("Got peer that didn't exist: peer #" + peerId);
+        return peerConnections.get(peerId);
+        //throw new Exception("Got peer that didn't exist: peer #" + peerId);
     }
 
     public void initializeBitfield(boolean hasFile) {
@@ -708,12 +756,12 @@ public class peerProcess{
                 byte[] onePiece = Peer.myFileManager.readData(i,  1); //The one piece is real
                 String msgPayload = new String(onePiece);   //can we get much higher?
                 message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-                Peer.getPeerConnection(selectedPeer).out.writeObject(pieceMsg.getMessage());
-                Peer.getPeerConnection(selectedPeer).out.flush();
+                Peer.getPeerConnection(selectedPeer).send.write(pieceMsg);
                 i = i + 1;
             } //Peer who doesn't have file
+            
             else if (!Peer.hasFile && i < Peer.pieceCount) {
-                String piece = (String) Peer.getPeerConnection(1001).in.readObject();
+                String piece = (String) Peer.getPeerConnection(1001).recv.read();
                 String msgPayload = piece.substring(5);
                 Peer.myFileManager.writeData(i, msgPayload.getBytes(StandardCharsets.UTF_8));
                 Peer.Log.downloadPiece(1001, i, i);
@@ -723,7 +771,7 @@ public class peerProcess{
                     Peer.myFileManager.writeToFile();
                     Peer.Log.completeDownload();
                 }
-            }
+            } 
         }
         //will need to use threads (barf)
     }
