@@ -591,12 +591,12 @@ public class peerProcess{
                 try {
                     //Process only piece messages in order rn
                     String piece = read();
-                    System.out.println("Processing Piece...");
+                    //Right now we only pass pieces, so this only continues once we receive a piece
                     fileManagerSemaphor.acquire();
                     String pieceIndexString = piece.substring(5, 9);
-                    System.out.println(pieceIndexString);
+                    int pieceIndex = Integer.parseInt(pieceIndexString);
                     String msgPayload = piece.substring(9);
-                    myFileManager.writeData(i, msgPayload.getBytes(StandardCharsets.UTF_8));
+                    myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
                     Log.downloadPiece(1001, i, i);
                     i = i + 1;
                     if (i == pieceCount) {
@@ -748,9 +748,7 @@ public class peerProcess{
             for (int i = indexBinary.length(); i < 4; ++i) {
                 indexBinary = "0" + indexBinary;
             }
-            System.out.println(indexBinary);
             msgPayload = indexBinary + msgPayload;
-            System.out.println(msgPayload.length());
             message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
             getPeerConnection(peer).send.sendMessage(pieceMsg);
         } catch (Exception e) {
