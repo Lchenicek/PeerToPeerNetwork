@@ -78,21 +78,15 @@ public class peerProcess {
         send = new peerConnectionSend(connection);
         recv = new peerConnectionReceive(connection);
 
+        // Handshake.
         SendHandshake();
-        String response = recv.read();
-        System.out.println("Recieved handshake response: " + response);
-
-        // Verify handshake
-        if (!message.isValidHandshake(response, info.id)) {
-          // FIXME: what to do when handshake is invalid?
-          System.out.println("Invalid handshake!");
-        }
+        ReceiveHandshake();
 
         // Next send bitfield
         String bitfieldPayload = myBitfield.getMessagePayload();
         message bitfieldMsg = new message(bitfieldPayload.length(), message.MessageType.bitfield, bitfieldPayload);
         send.write(bitfieldMsg);
-        response = recv.read();
+        String response = recv.read();
         System.out.println("Recieved bitfield response: " + response);
 
         // Process bitfield response
@@ -153,16 +147,9 @@ public class peerProcess {
         recv = new peerConnectionReceive(connection);
         System.out.println("Connection received from peer " + Integer.toString(peerId) + " successfully!");
 
-        // Handshake
-        String handshake = recv.read();
-        System.out.println("Received handshake: " + handshake);
+        // Handshake.
+        ReceiveHandshake();
         SendHandshake();
-
-        // Verify handshake
-        if (!message.isValidHandshake(handshake, _id)) {
-          // FIXME: what to do when handshake is invalid?
-          System.out.println("Invalid handshake!");
-        }
 
         // Bitfield
         String bitfieldMsg = recv.read();
@@ -221,6 +208,25 @@ public class peerProcess {
         // handshakeSuccessStatus.put(peerId, false);
         // System.out.println("Success! Peer " + id + " sent handshake to peer " +
         // peerId);
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+    public void ReceiveHandshake() {
+      try {
+        // Receive handshake from connected peer.
+        String handshake = recv.read();
+
+        // Print handshake for debugging.
+        System.out.println("Received handshake: " + handshake);
+
+        // Validate handshake.
+        if (!message.isValidHandshake(handshake, this.peerId)) {
+          // FIXME: what to do when handshake is invalid?
+          // Threw exception for now.
+          throw new Exception("Invalid handshake! Received " + handshake + " from " + Integer.toString(this.peerId) + "\n");
+        }
       } catch (Exception e) {
         e.printStackTrace();
       }
