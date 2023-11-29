@@ -769,6 +769,15 @@ public class peerProcess {
                         break;
                     case 4:
                         System.out.println("Received have");
+                        int haveIndex = Integer.parseInt(piece.substring(5));
+                        boolean interestingPiece = !myBitfield.hasPiece(haveIndex); //if we don't have it, it's interesting
+                        if(interestingPiece){
+                            send.sendMessage(new message(5, message.MessageType.interested, ""));
+                            iDesiredPieces.add(haveIndex);
+                          }
+                        else{
+                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                        }
                         break;
                     case 5:
                         System.out.println("Received bitfield");
@@ -794,6 +803,14 @@ public class peerProcess {
                         iDesiredPieces.remove(Integer.valueOf(pieceIndex));
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
+
+                        message haveMessage = new message(9, message.MessageType.have, Integer.toString(pieceIndex));
+
+                        for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
+                          peerConnection peer = entry.getValue();
+                          peer.send.sendMessage(haveMessage);
+                        }
+
                         if (myBitfield.hasFile()) {
                             //On the last iteration
                             fileManagerSemaphor.acquire();

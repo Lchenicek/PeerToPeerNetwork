@@ -56,6 +56,10 @@ public class bitfield {
         //little overhead to avoid issues with dupes
     }
 
+    public boolean hasPiece(int index){
+        return pieces.get(index);
+    }
+
     public int getOwnedPieces(){
         return ownedPieces;
     }
