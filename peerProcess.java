@@ -785,11 +785,13 @@ public class peerProcess {
                         String pieceIndexString = piece.substring(5, 9);
                         int pieceIndex = Integer.parseInt(pieceIndexString);
                         String msgPayload = piece.substring(9);
+
                         fileManagerSemaphor.acquire();
                         myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
                         myBitfield.addPiece(pieceIndex);
                         fileManagerSemaphor.release();
-                        iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
+
+                        iDesiredPieces.remove(Integer.valueOf(pieceIndex));
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
                         if (myBitfield.hasFile()) {
