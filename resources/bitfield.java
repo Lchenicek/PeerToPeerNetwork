@@ -56,6 +56,10 @@ public class bitfield {
         //little overhead to avoid issues with dupes
     }
 
+    public int getPieceCount(){
+        return ownedPieces;
+    }
+
     //Takes in another resources.bitfield, returns a list of pieces we want by index?
     public ArrayList<Integer> getMissingBits(ArrayList<Boolean> otherBitfield) {
         ArrayList<Integer> intrestingPieces = new ArrayList<Integer>();
@@ -130,6 +134,7 @@ public class bitfield {
         System.out.println("\nTest3:");
         String test3 = semiFullBitfield.getMessagePayload();
         System.out.println(test3);
+
         System.out.println("\nTest4");
         System.out.println(fullBitfield.hasFile());
         System.out.println(secondSemiFullBitfield.hasFile());

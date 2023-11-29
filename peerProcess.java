@@ -697,28 +697,34 @@ public class peerProcess {
         System.out.println("run begins");
         int i = 0; // FIXME: the reading system
         while (true) {
-          if (i < pieceCount) {
-            try {
-              // Process only piece messages in order rn
-              String piece = read();
-              // Right now we only pass pieces, so this only continues once we receive a piece
-              fileManagerSemaphor.acquire();
-              String pieceIndexString = piece.substring(5, 9);
-              int pieceIndex = Integer.parseInt(pieceIndexString);
-              String msgPayload = piece.substring(9);
-              myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
-              Log.downloadPiece(1001, i, i);
-              i = i + 1;
-              if (i == pieceCount) {
-                // On the last iteration
-                myFileManager.writeToFile();
-                Log.completeDownload();
-                System.out.println("Finished Reading File");
-              }
-              fileManagerSemaphor.release();
-            } catch (InterruptedException e) {
-              e.printStackTrace();
-            }
+
+            // Process only piece messages in order rn
+            String message = read();
+            int messageType = Integer.parseInt(message.substring(4, 5));
+            // Right now we only pass pieces, so this only continues once we receive a piece
+            switch (messageType){
+              case 7:   //TODO: this should be an enum for readability
+                try {
+                  fileManagerSemaphor.acquire();
+                  String pieceIndexString = message.substring(5, 9);
+                  int pieceIndex = Integer.parseInt(pieceIndexString);
+                  String msgPayload = message.substring(9);
+                  myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
+                  myBitfield.addPiece(pieceIndex);
+                  Log.downloadPiece(peerId, pieceIndex, myBitfield.getPieceCount());
+                  if (myBitfield.hasFile()) {
+                    // On the last iteration
+                    myFileManager.writeToFile();
+                    Log.completeDownload();
+                    System.out.println("Finished Reading File");
+                  }
+                  fileManagerSemaphor.release();
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+              break;
+            default:
+              break;
           }
         }
       }
