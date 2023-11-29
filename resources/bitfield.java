@@ -94,7 +94,7 @@ public class bitfield {
             //This only works because we know the size of the payload and Array list are the same
             try{
                 if (bitfieldMsg.charAt(i) == '1' && !pieces.get(i - 5)) {
-                    intrestingBits.add(i);
+                    intrestingBits.add(i - 5);
                 }
             } catch (IndexOutOfBoundsException e){ break; } 
             //for bitfield messages that aren't cleanly their number of bits the bytes size implies
