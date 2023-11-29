@@ -90,11 +90,11 @@ public class peerProcess {
         // Send interest message
         // TODO: do something with level of interest
         if (iDesiredPieces.isEmpty()) {
-          message notInterestedMsg = new message(0, message.MessageType.notInterested);
-          send.write(notInterestedMsg);
+          SendNotInterested();
+
         } else {
-          message interestedMsg = new message(0, message.MessageType.interested);
-          send.write(interestedMsg);
+          SendInterested();
+
         }
 
         // Receive interest response
@@ -151,11 +151,9 @@ public class peerProcess {
         // Send interest message
         // TODO: do something with level of interest
         if (iDesiredPieces.isEmpty()) {
-          message notInterestedMsg = new message(0, message.MessageType.notInterested);
-          send.write(notInterestedMsg);
+          SendNotInterested();
         } else {
-          message interestedMsg = new message(0, message.MessageType.interested);
-          send.write(interestedMsg);
+          SendInterested();
         }
 
         // Receive interest response
@@ -242,13 +240,41 @@ public class peerProcess {
         // Print message for debugging.
         System.out.println("Received bitfield: " + bitfieldMsg);
 
-        // TODO: I assume we'll have to keep track of desiredBits (it'd probably need a semaphor)
+        // TODO: I assume we'll have to keep track of desiredBits (it'd probably need a
+        // semaphor)
         // Determine if connected peer has pieces that the process owner needs.
-        /* NOTE: Due to implementation of "processBitfieldMessage()",
-         *       The indices are relative to entire bitfield message.
-         *       Therefore, index 5 corresponds to the index of first piece
-        */ 
+        /*
+         * NOTE: Due to implementation of "processBitfieldMessage()",
+         * The indices are relative to entire bitfield message.
+         * Therefore, index 5 corresponds to the index of first piece
+         */
         iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
+
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+    public void SendInterested() {
+      try {
+        // Create interested message.
+        message interestedMsg = new message(0, message.MessageType.interested);
+
+        // Send interested message to connected peer.
+        send.write(interestedMsg);
+
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
+    }
+
+    public void SendNotInterested() {
+      try {
+        // Create not interested message.
+        message notInterestedMsg = new message(0, message.MessageType.notInterested);
+
+        // Send not interested message to connected peer.
+        send.write(notInterestedMsg);
 
       } catch (Exception e) {
         e.printStackTrace();
