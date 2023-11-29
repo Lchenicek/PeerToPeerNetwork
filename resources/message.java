@@ -35,10 +35,13 @@ public class message {
             msg = "P2PFILESHARINGPROJ" + "0000000000" + (messagePayload);
         }
         else {
-            String length = Integer.toString(messageLength);
+            //Message length is number of bits, should be number of bytes when transmitted, so divide by 8 and take the ceil to get num of bytes
+            int lengthInBytes = (int) Math.ceil((float) messageLength / 8.0);
+            String length = Integer.toString(lengthInBytes);
             while (length.length() < 4) {
                 length = "0" + length;
             }
+
             msg = length + Integer.toString(messageType.value) + (messagePayload);
         }
     }

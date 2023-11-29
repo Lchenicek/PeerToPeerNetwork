@@ -593,7 +593,9 @@ public class peerProcess{
                     String piece = read();
                     System.out.println("Processing Piece...");
                     fileManagerSemaphor.acquire();
-                    String msgPayload = piece.substring(5);
+                    String pieceIndexString = piece.substring(5, 9);
+                    System.out.println(pieceIndexString);
+                    String msgPayload = piece.substring(9);
                     myFileManager.writeData(i, msgPayload.getBytes(StandardCharsets.UTF_8));
                     Log.downloadPiece(1001, i, i);
                     i = i + 1;
@@ -741,7 +743,14 @@ public class peerProcess{
             fileManagerSemaphor.acquire();
             byte[] onePiece = myFileManager.readData(piece,  1); //The one piece is real
             fileManagerSemaphor.release();
-            String msgPayload = new String(onePiece);   //can we get much higher?
+            String msgPayload = new String(onePiece);
+            String indexBinary = Integer.toString(piece);
+            for (int i = indexBinary.length(); i < 4; ++i) {
+                indexBinary = "0" + indexBinary;
+            }
+            System.out.println(indexBinary);
+            msgPayload = indexBinary + msgPayload;
+            System.out.println(msgPayload.length());
             message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
             getPeerConnection(peer).send.sendMessage(pieceMsg);
         } catch (Exception e) {
