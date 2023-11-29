@@ -30,6 +30,7 @@ public class peerProcess{
     bitfield myBitfield;
     private static byte[] processOwnerBitfield; // Bitfield of pieces contained by the process owner.
     fileManager myFileManager;
+    Semaphore fileManagerSemaphor = new Semaphore(1);
     //we should probably have a binary semaphore for writing to the file
 
     //Semaphors cuz threading
@@ -227,6 +228,13 @@ public class peerProcess{
         }
         //used when something else tells this socket to write a message
         //not sure how much it'll come up, but we need it for the constructor at least
+
+        public void sendMessage(message m) {
+            try{
+                out.writeObject(m.getMessage());
+                out.flush();
+            } catch (Exception e){System.err.println(e.getMessage());}
+        }
 
       /*   public peerConnectionSend(Socket connection, peerInfo peer, boolean isServer) {
           this.connection = connection;
@@ -577,7 +585,28 @@ public class peerProcess{
 
       public void run(){
         System.out.println("run begins");
+        int i = 0; //FIXME: the reading system
         while(true){
+            if (i < pieceCount) {
+                try {
+                    //Process only piece messages in order rn
+                    String piece = read();
+                    System.out.println("Processing Piece...");
+                    fileManagerSemaphor.acquire();
+                    String msgPayload = piece.substring(5);
+                    myFileManager.writeData(i, msgPayload.getBytes(StandardCharsets.UTF_8));
+                    Log.downloadPiece(1001, i, i);
+                    i = i + 1;
+                    if (i == pieceCount) {
+                        //On the last iteration
+                        myFileManager.writeToFile();
+                        Log.completeDownload();
+                    }
+                    fileManagerSemaphor.release();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
         }
       }
     }
@@ -705,6 +734,21 @@ public class peerProcess{
       }
     }
 
+    public void sendPieceToPeer(int peer, int piece) {
+        try {
+            //getPeerConnection(peer).send.sendMessage("test");
+            //If we have the file, send some data to the peer we selected
+            fileManagerSemaphor.acquire();
+            byte[] onePiece = myFileManager.readData(piece,  1); //The one piece is real
+            fileManagerSemaphor.release();
+            String msgPayload = new String(onePiece);   //can we get much higher?
+            message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
+            getPeerConnection(peer).send.sendMessage(pieceMsg);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void main(String[] args) throws Exception {
         if (args.length != 1){
             System.err.println("You must specify an id and nothing more");
@@ -752,26 +796,9 @@ public class peerProcess{
             //Peer who has file
             //FIXME (Post Checkin): move this into the threads
             if (Peer.hasFile && i < Peer.pieceCount) {
-                //If we have the file, send some data to the peer we selected
-                byte[] onePiece = Peer.myFileManager.readData(i,  1); //The one piece is real
-                String msgPayload = new String(onePiece);   //can we get much higher?
-                message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-                Peer.getPeerConnection(selectedPeer).send.write(pieceMsg);
+                Peer.sendPieceToPeer(selectedPeer, i);
                 i = i + 1;
             } //Peer who doesn't have file
-            
-            else if (!Peer.hasFile && i < Peer.pieceCount) {
-                String piece = (String) Peer.getPeerConnection(1001).recv.read();
-                String msgPayload = piece.substring(5);
-                Peer.myFileManager.writeData(i, msgPayload.getBytes(StandardCharsets.UTF_8));
-                Peer.Log.downloadPiece(1001, i, i);
-                i = i + 1;
-                if (i == Peer.pieceCount) {
-                    //On the last iteration
-                    Peer.myFileManager.writeToFile();
-                    Peer.Log.completeDownload();
-                }
-            } 
         }
         //will need to use threads (barf)
     }
