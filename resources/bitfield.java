@@ -75,6 +75,15 @@ public class bitfield {
         return intrestingBits;
     }
 
+    public boolean fileComplete() {
+        for (int i = 0; i < pieces.size(); ++i) {
+            if (!pieces.get(i)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     public static void main(String[] args){
         bitfield testBitfield = new bitfield(100, 10, false);
         bitfield semiFullBitfield = new bitfield(100, 10, false);

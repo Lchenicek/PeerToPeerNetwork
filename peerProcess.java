@@ -714,6 +714,19 @@ public class peerProcess {
         }
       }
 
+      public void requestPieceFromPeer() {
+        try {
+          Random rand = new Random();
+          System.out.println(iDesiredPieces);
+          int piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
+
+          message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
+          send.sendMessage(pieceRequest);
+        } catch (Exception e) {
+          e.printStackTrace();
+        }
+      }
+
       public void run() {
         System.out.println("run begins");
         while(true){
@@ -760,11 +773,16 @@ public class peerProcess {
                         iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         Log.downloadPiece(1001, pieceIndex, pieceIndex);
-                        if (pieceIndex == pieceCount - 1) {
+                        if (myBitfield.fileComplete()) {
                             //On the last iteration
                             myFileManager.writeToFile();
                             Log.completeDownload();
                             System.out.println("Finished Reading File");
+                        }
+                        else {
+                            //If not done, request another piece
+                            System.out.println("Requesting New Piece");
+                            requestPieceFromPeer();
                         }
                         fileManagerSemaphor.release();
 
@@ -962,10 +980,8 @@ public class peerProcess {
 
   public void requestPieceFromPeer(peerConnection pC, int piece) {
     try {
-      fileManagerSemaphor.acquire();
       System.out.println("Interested in piece:");
       System.out.println(piece);
-      fileManagerSemaphor.release();
 
       message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
       pC.send.sendMessage(pieceRequest);
@@ -1008,7 +1024,9 @@ public class peerProcess {
         // key is id and value is connection
         System.out.println(entry.getValue().iDesiredPieces);
         if (entry.getValue().iDesiredPieces.size() > 0) {
-          int pieceToRequest = rand.nextInt(entry.getValue().iDesiredPieces.size());
+          Peer.fileManagerSemaphor.acquire();
+          int pieceToRequest = entry.getValue().iDesiredPieces.get(rand.nextInt(entry.getValue().iDesiredPieces.size()));
+          Peer.fileManagerSemaphor.release();
           Peer.requestPieceFromPeer(entry.getValue(), pieceToRequest);
         }
       }
