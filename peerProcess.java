@@ -62,12 +62,12 @@ public class peerProcess {
     private int peerId;
     private Socket connection;
     ArrayList<Integer> iDesiredPieces; // Indices of pieces that the process owner needs.
-    bitfield peerBitfield;
 
     // Records whether a handshake has been successfully sent/received between
     // connected peers.
     private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();
     String bitfieldMsg; // Bitfield of pieces contained by the connected peer.
+    bitfield peerBitfield;
 
     // Client connectipon
     public peerConnection(peerInfo info) { // constructor for if this peer is connecting to another peer. we make the
@@ -216,10 +216,9 @@ public class peerProcess {
       try {
         // Read bitfield message from connected peer.
         bitfieldMsg = recv.read();
-
+        peerBitfield = new bitfield(bitfieldMsg);
         // Print message for debugging.
         System.out.println("Received bitfield: " + bitfieldMsg);
-        peerBitfield = new bitfield(bitfieldMsg);
 
         // TODO: I assume we'll have to keep track of desiredBits (it'd probably need a
         // semaphor)
