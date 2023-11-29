@@ -33,6 +33,8 @@ public class peerProcess {
   Semaphore fileManagerSemaphor = new Semaphore(1);
   // we should probably have a binary semaphore for writing to the file
 
+  ArrayList<Integer> outstandingPieceRequests = new ArrayList<>(); //Represents pieces we've already requested
+
   // Semaphors cuz threading
   ArrayList<Integer> peersInterested = new ArrayList<>(); // Peers interested in our data
   Semaphore semPeersInterested = new Semaphore(1); // Semaphor for above data
@@ -64,7 +66,7 @@ public class peerProcess {
     // Records whether a handshake has been successfully sent/received between
     // connected peers.
     private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();
-    byte[] connectedPeerBitfield; // Bitfield of pieces contained by the connected peer.
+    String bitfieldMsg; // Bitfield of pieces contained by the connected peer.
 
     // Client connectipon
     public peerConnection(peerInfo info) { // constructor for if this peer is connecting to another peer. we make the
@@ -212,7 +214,7 @@ public class peerProcess {
     public void ReceiveBitfield() {
       try {
         // Read bitfield message from connected peer.
-        String bitfieldMsg = recv.read();
+        bitfieldMsg = recv.read();
 
         // Print message for debugging.
         System.out.println("Received bitfield: " + bitfieldMsg);
@@ -731,6 +733,9 @@ public class peerProcess {
                         int pieceIndex = Integer.parseInt(pieceIndexString);
                         String msgPayload = piece.substring(9);
                         myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
+                        myBitfield.addPiece(pieceIndex);
+                        iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
+                        outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         Log.downloadPiece(1001, pieceIndex, pieceIndex);
                         if (pieceIndex == pieceCount - 1) {
                             //On the last iteration
@@ -739,6 +744,7 @@ public class peerProcess {
                             System.out.println("Finished Reading File");
                         }
                         fileManagerSemaphor.release();
+
 
                         break;
 
@@ -931,6 +937,10 @@ public class peerProcess {
     }
   }
 
+  public void requestPieceFromPeer(int peer, int piece) {
+
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
       System.err.println("You must specify an id and nothing more");
@@ -939,12 +949,12 @@ public class peerProcess {
     peerProcess Peer = new peerProcess(args[0]); // I think this is how to construct in java it has been a moment
     // TODO: the actual server stuff at the moment (currently only executes once we
     // have 3 peers, is this intended?)
+    Random rand = new Random();
 
     int selectedPeer = -1;
     if (Peer.hasFile) {
       // If we have the file, select neighbors randomly (should be # of connections,
       // only selecting 1 for testing)
-      Random rand = new Random();
       try {
         // Get the data
         Peer.semPeersInterested.acquire();
@@ -958,6 +968,20 @@ public class peerProcess {
         e.printStackTrace();
       }
 
+    }
+
+    if (!Peer.hasFile) {
+      for (Map.Entry<Integer, peerConnection> entry : Peer.peerConnections.entrySet()) {
+        // key is id and value is connection
+        System.out.println(entry.getValue().iDesiredPieces);
+        if (entry.getValue().iDesiredPieces.size() > 0) {
+          Peer.fileManagerSemaphor.acquire();
+          int pieceToRequest = entry.getValue().iDesiredPieces.get(rand.nextInt(entry.getValue().iDesiredPieces.size()));
+          System.out.println("Interested in piece:");
+          System.out.println(pieceToRequest);
+          Peer.fileManagerSemaphor.release();
+        }
+      }
     }
 
     int i = 0;
@@ -987,7 +1011,8 @@ public class peerProcess {
         if (i == Peer.pieceCount) {
           System.out.println("Finished Sending File");
         }
-      } // Peer who doesn't have file
+      }
+
     }
     // will need to use threads (barf)
   }

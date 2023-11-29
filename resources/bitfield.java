@@ -57,14 +57,20 @@ public class bitfield {
     }
 
     public ArrayList<Integer> processBitfieldMessage(String bitfieldMsg) {
-        int msgSize = Integer.parseInt(bitfieldMsg.substring(0, 4));
+        //int msgSize = (Integer.parseInt(bitfieldMsg.substring(0, 4)) * 8);  //convert size to bits
         ArrayList<Integer> intrestingBits = new ArrayList<>();
         //We start at 5 because 0-3 is the size, 4 is the type and 5-msgSize is payload
-        for (int i = 5; i < msgSize; ++i) {
+        for (int i = 5; i < bitfieldMsg.length(); ++i) {
             //This only works because we know the size of the payload and Array list are the same
-            if (bitfieldMsg.charAt(i) == '1' && !pieces.get(i - 5)) {
-                intrestingBits.add(i);
+            try{
+                if (bitfieldMsg.charAt(i) == '1' && !pieces.get(i - 5)) {
+                    intrestingBits.add(i - 5);
+                }
+            } catch (IndexOutOfBoundsException e){
+                break;
             }
+            //for bitfield messages that aren't cleanly their number of bits the bytes size implies
+            //i.e. a 15 bit message that would expect 16
         }
         return intrestingBits;
     }
@@ -88,5 +94,6 @@ public class bitfield {
         System.out.println("\nTest3:");
         String test3 = semiFullBitfield.getMessagePayload();
         System.out.println(test3);
+        testBitfield.processBitfieldMessage("000250001000100");
     }
 }
