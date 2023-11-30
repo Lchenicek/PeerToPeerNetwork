@@ -40,6 +40,8 @@ public class peerProcess {
   ArrayList<Integer> peersInterested = new ArrayList<>(); // Peers interested in our data
   Semaphore semPeersInterested = new Semaphore(1); // Semaphor for above data
 
+  boolean controlShutdown = false;
+
   private class peerInfo {
     public int id;
     public String hostname;
@@ -753,7 +755,13 @@ public class peerProcess {
                 String piece = read();
 
                 //converts it to an int
-                int msgType = piece.charAt(4) - '0';
+                int msgType = -1;
+                try{
+                  msgType = piece.charAt(4) - '0';
+                } catch(StringIndexOutOfBoundsException e){
+                  System.err.print(" ");
+                }
+
                 switch (msgType) {
                     case 0:
                         System.out.println("Received choke");
@@ -774,10 +782,13 @@ public class peerProcess {
                         int haveIndex = Integer.parseInt(piece.substring(5));
                         Log.receiveHaveMessage(peerId, haveIndex);
                         boolean interestingPiece = !myBitfield.hasPiece(haveIndex); //if we don't have it, it's interesting
+                        peerBitfield.addPiece(haveIndex);
                         if(interestingPiece){
-                            send.sendMessage(new message(5, message.MessageType.interested, ""));
-                            iDesiredPieces.add(haveIndex);
+                          iDesiredPieces.add(haveIndex);
                           }
+                        if(iDesiredPieces.size() != 0) {
+                          send.sendMessage(new message(5, message.MessageType.interested, ""));
+                        }
                         else{
                           send.sendMessage(new message(5, message.MessageType.notInterested, ""));
                         }
@@ -826,14 +837,30 @@ public class peerProcess {
                             //If not done, request another piece
                             requestPieceFromPeer();
                         }
-                        
-
-
                         break;
-
+                    case 9:
+                        System.exit(0);
+                    default:
+                        break;
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
+            }
+
+            if(myBitfield.hasFile() && controlShutdown){
+              boolean shutdown = true;
+                for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
+                  peerConnection peer = entry.getValue();
+                  bitfield otherBitfield = peer.peerBitfield;
+                  if(!otherBitfield.hasFile()) shutdown = false;
+                }
+              if(shutdown){ 
+                for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
+                  peerConnection peer = entry.getValue();
+                  peer.send.sendMessage(new message(5, message.MessageType.shutdown, ""));
+                }
+                System.exit(0); 
+              }
             }
           }
         }
@@ -941,7 +968,7 @@ public class peerProcess {
       System.err.println("Config file PeerInfo.cfg not found");
       System.exit(-1);
     }
-
+    if (earlierPeers == 0) controlShutdown = true;
     peerConnections = new HashMap<Integer, peerConnection>();
 
     for (int i = 0; i < earlierPeers; i++) {

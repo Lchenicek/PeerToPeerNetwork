@@ -11,7 +11,8 @@ public class message {
         bitfield(5),
         request(6),
         piece(7),
-        handshake(8);
+        handshake(8),
+        shutdown(9);
 
         public final int value;
 
