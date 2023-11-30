@@ -37,7 +37,7 @@ public class peerProcess {
   Set<Integer> outstandingPieceRequests = new HashSet<Integer>(); //Represents pieces we've already requested
 
   // Semaphors cuz threading
-  ArrayList<Integer> peersInterested = new ArrayList<>(); // Peers interested in our data
+  Set<Integer> peersInterested = new HashSet<>(); // Peers interested in our data
   Semaphore semPeersInterested = new Semaphore(1); // Semaphor for above data
 
   boolean controlShutdown = false;
@@ -779,7 +779,7 @@ public class peerProcess {
                         break;
                     case 3:
                         semPeersInterested.acquire();
-                        peersInterested.remove(Integer.valueOf(peerId)); // Removes peer from list if so
+                        peersInterested.remove(peerId); // Removes peer from list if so
                         semPeersInterested.release();
 
                         Log.receiveNotInterestedMessage(peerId);
@@ -855,7 +855,7 @@ public class peerProcess {
             }
 
             if(myBitfield.hasFile() && controlShutdown){
-              boolean shutdown = true;
+              boolean shutdown = false;
                 for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                   peerConnection peer = entry.getValue();
                   bitfield otherBitfield = peer.peerBitfield;
@@ -1063,34 +1063,17 @@ public class peerProcess {
     }
   }
 
+  public void recalculateDownloaders() {
+    System.out.println("Interested peers: " + peersInterested);
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
       System.err.println("You must specify an id and nothing more");
       return;
     }
     peerProcess Peer = new peerProcess(args[0]); // I think this is how to construct in java it has been a moment
-    // TODO: the actual server stuff at the moment (currently only executes once we
-    // have 3 peers, is this intended?)
     Random rand = new Random();
-
-    int selectedPeer = -1;
-    if (Peer.hasFile) {
-      // If we have the file, select neighbors randomly (should be # of connections,
-      // only selecting 1 for testing)
-      try {
-        // Get the data
-        Peer.semPeersInterested.acquire();
-        ArrayList<Integer> peersInterested = Peer.peersInterested;
-        Peer.semPeersInterested.release();
-
-        int selectedPeerIndex = rand.nextInt(peersInterested.size());
-        selectedPeer = peersInterested.get(selectedPeerIndex);
-        System.out.println("This peer has the file. Begin transfer to peer #" + Integer.toString(selectedPeer));
-      } catch (InterruptedException e) {
-        e.printStackTrace();
-      }
-
-    }
 
     if (!Peer.hasFile) {
       for (Map.Entry<Integer, peerConnection> entry : Peer.peerConnections.entrySet()) {
@@ -1108,10 +1091,8 @@ public class peerProcess {
     // Should go right before loop
     long lastRecalc = System.currentTimeMillis();
     while (true) {
-      // I have broken this system. It worked before (and still mostly does) but the
-      // peer who does nothing right now is blocked by waiting for input
       if (System.currentTimeMillis() - lastRecalc > Peer.unchokingInterval * 1000L) {
-        System.out.println("Recalculate top downloaders");
+        Peer.recalculateDownloaders();
         lastRecalc = System.currentTimeMillis();
       }
 
