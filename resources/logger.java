@@ -99,6 +99,16 @@ public class logger {
         }
     }
 
+    public void choked(int peer) {
+        String logEntry = startEntry() + "is choked by " + Integer.toString(peer) + ".\n";
+        writeEntry(logEntry);
+    }
+
+    public void unchoked(int peer) {
+        String logEntry = startEntry() + "is unchoked by " + Integer.toString(peer) + ".\n";
+        writeEntry(logEntry);
+    }
+
     private String startEntry(){
         LocalDateTime now = LocalDateTime.now();    //get the current time
         String formattedDateTime = now.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);   //convert it to a string formatted in iso standard

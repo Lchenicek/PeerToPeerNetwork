@@ -777,15 +777,15 @@ public class peerProcess {
 
                 switch (msgType) {
                     case 0:
-                        System.out.println("Received choke");
+                        Log.choked(peerId);
                         choked = true;
                         break;
                     case 1:
                         if (choked) {
-                          System.out.println("Received unchoke");
                           //If we were choked, then it's time to start sending request messages again
                           requestPieceFromPeer();
                         }
+                        Log.unchoked(peerId);
                         //if we were already unchoked, then there's no need to do anything
                         choked = false;
                         break;
