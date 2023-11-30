@@ -771,9 +771,17 @@ public class peerProcess {
                         break;
                     case 2:
                         //System.out.println("Received interested");
+                        semPeersInterested.acquire();
+                        peersInterested.add(peerId); // Add peer to list of peers interested
+                        semPeersInterested.release();
+
                         Log.receiveInterestedMessage(peerId);
                         break;
                     case 3:
+                        semPeersInterested.acquire();
+                        peersInterested.remove(Integer.valueOf(peerId)); // Removes peer from list if so
+                        semPeersInterested.release();
+
                         Log.receiveNotInterestedMessage(peerId);
                         //System.out.println("Received not interested");
                         break;
@@ -833,9 +841,8 @@ public class peerProcess {
                             System.out.println("Finished Reading File");
                             fileManagerSemaphor.release();
                         }
-                        else {
-                            //If not done, request another piece
-                            requestPieceFromPeer();
+                        else if (iDesiredPieces.size() > 0) {
+                          requestPieceFromPeer();
                         }
                         break;
                     case 9:
