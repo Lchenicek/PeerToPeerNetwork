@@ -801,6 +801,7 @@ public class peerProcess {
                         Log.receiveHaveMessage(peerId, haveIndex);
                         boolean interestingPiece = !myBitfield.hasPiece(haveIndex); //if we don't have it, it's interesting
                         peerBitfield.addPiece(haveIndex);
+                        iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield()); //Testing recalc
                         if(interestingPiece){
                           iDesiredPieces.add(haveIndex);
                           }
