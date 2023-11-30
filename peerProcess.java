@@ -832,11 +832,14 @@ public class peerProcess {
                         myBitfield.addPiece(pieceIndex);
                         fileManagerSemaphor.release();
 
-                        iDesiredPieces.remove(Integer.valueOf(pieceIndex));
+                        //Recalc iDesired pieces in case we have gotten desired pieces from other connections
+                        iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield());
+                        if (iDesiredPieces.size() == 0) {
+                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                        }
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
                         piecesDownloadedThisPeriod += 1;
-                        //FIXME: we should recheck if we're still interested in this peer and send not interested if not somewhere in case 7
 
                         message haveMessage = new message(9, message.MessageType.have, Integer.toString(pieceIndex));
 
@@ -852,6 +855,7 @@ public class peerProcess {
                             Log.completeDownload();
                             System.out.println("Finished Reading File");
                             fileManagerSemaphor.release();
+                            send.sendMessage(new message(5, message.MessageType.notInterested, ""));
                         }
                         else if (iDesiredPieces.size() > 0 && !choked) {
                           requestPieceFromPeer();
