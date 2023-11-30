@@ -29,7 +29,7 @@ public class bitfield {
 
     public bitfield(String bitfieldMsg){
         //constructor from message
-        int msgSize = Integer.parseInt(bitfieldMsg.substring(0, 4)) * 8;
+        int msgSize = (Integer.parseInt(bitfieldMsg.substring(0, 4)) + 1) * 8;
         System.out.println(msgSize);
         ownedPieces = 0;
         for(int i = 5; i < msgSize; i++){
@@ -54,6 +54,10 @@ public class bitfield {
         }
         //if the piece isn't in the bitfield, add it
         //little overhead to avoid issues with dupes
+    }
+
+    public boolean hasPiece(int index){
+        return pieces.get(index);
     }
 
     public int getOwnedPieces(){
@@ -87,7 +91,7 @@ public class bitfield {
     }
 
     public ArrayList<Integer> processBitfieldMessage(String bitfieldMsg) {
-        //int msgSize = (Integer.parseInt(bitfieldMsg.substring(0, 4)) * 8);  //convert size to bits
+        int msgSize = (Integer.parseInt(bitfieldMsg.substring(0, 4)) * 8);  //convert size to bits
         ArrayList<Integer> intrestingBits = new ArrayList<>();
         //We start at 5 because 0-3 is the size, 4 is the type and 5-msgSize is payload
         for (int i = 5; i < bitfieldMsg.length(); ++i) {

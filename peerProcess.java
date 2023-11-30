@@ -40,6 +40,8 @@ public class peerProcess {
   ArrayList<Integer> peersInterested = new ArrayList<>(); // Peers interested in our data
   Semaphore semPeersInterested = new Semaphore(1); // Semaphor for above data
 
+  boolean controlShutdown = false;
+
   private class peerInfo {
     public int id;
     public String hostname;
@@ -753,7 +755,13 @@ public class peerProcess {
                 String piece = read();
 
                 //converts it to an int
-                int msgType = piece.charAt(4) - '0';
+                int msgType = -1;
+                try{
+                  msgType = piece.charAt(4) - '0';
+                } catch(StringIndexOutOfBoundsException e){
+                  System.err.print(" ");
+                }
+
                 switch (msgType) {
                     case 0:
                         System.out.println("Received choke");
@@ -762,13 +770,26 @@ public class peerProcess {
                         System.out.println("Received unchoke");
                         break;
                     case 2:
-                        System.out.println("Received interested");
+                        //System.out.println("Received interested");
+                        Log.receiveInterestedMessage(peerId);
                         break;
                     case 3:
-                        System.out.println("Received not interested");
+                        Log.receiveNotInterestedMessage(peerId);
+                        //System.out.println("Received not interested");
                         break;
                     case 4:
-                        System.out.println("Received have");
+                        //System.out.println("Received have");
+                        int haveIndex = Integer.parseInt(piece.substring(5));
+                        Log.receiveHaveMessage(peerId, haveIndex);
+                        boolean interestingPiece = !myBitfield.hasPiece(haveIndex); //if we don't have it, it's interesting
+                        peerBitfield.addPiece(haveIndex);
+                        if(interestingPiece){
+                            send.sendMessage(new message(5, message.MessageType.interested, ""));
+                            iDesiredPieces.add(haveIndex);
+                          }
+                        else{
+                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                        }
                         break;
                     case 5:
                         System.out.println("Received bitfield");
@@ -785,13 +806,23 @@ public class peerProcess {
                         String pieceIndexString = piece.substring(5, 9);
                         int pieceIndex = Integer.parseInt(pieceIndexString);
                         String msgPayload = piece.substring(9);
+
                         fileManagerSemaphor.acquire();
                         myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
                         myBitfield.addPiece(pieceIndex);
                         fileManagerSemaphor.release();
-                        iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
+
+                        iDesiredPieces.remove(Integer.valueOf(pieceIndex));
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
+
+                        message haveMessage = new message(9, message.MessageType.have, Integer.toString(pieceIndex));
+
+                        for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
+                          peerConnection peer = entry.getValue();
+                          peer.send.sendMessage(haveMessage);
+                        }
+
                         if (myBitfield.hasFile()) {
                             //On the last iteration
                             fileManagerSemaphor.acquire();
@@ -804,14 +835,30 @@ public class peerProcess {
                             //If not done, request another piece
                             requestPieceFromPeer();
                         }
-                        
-
-
                         break;
-
+                    case 9:
+                        System.exit(0);
+                    default:
+                        break;
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
+            }
+
+            if(myBitfield.hasFile() && controlShutdown){
+              boolean shutdown = true;
+                for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
+                  peerConnection peer = entry.getValue();
+                  bitfield otherBitfield = peer.peerBitfield;
+                  if(!otherBitfield.hasFile()) shutdown = false;
+                }
+              if(shutdown){ 
+                for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
+                  peerConnection peer = entry.getValue();
+                  peer.send.sendMessage(new message(5, message.MessageType.shutdown, ""));
+                }
+                System.exit(0); 
+              }
             }
           }
         }
@@ -919,7 +966,7 @@ public class peerProcess {
       System.err.println("Config file PeerInfo.cfg not found");
       System.exit(-1);
     }
-
+    if (earlierPeers == 0) controlShutdown = true;
     peerConnections = new HashMap<Integer, peerConnection>();
 
     for (int i = 0; i < earlierPeers; i++) {
