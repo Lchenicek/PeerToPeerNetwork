@@ -106,7 +106,8 @@ public class peerProcess {
         }
 
         // Receive & process interest response
-        ProcessInterestResponse();
+        String interestResponse = recv.read();
+        ProcessInterestResponse(Character.toString(interestResponse.charAt(4)));
 
         send.start();
         recv.start();
@@ -154,7 +155,8 @@ public class peerProcess {
         }
 
         // Receive & process interest response.
-        ProcessInterestResponse();
+        String interestResponse = recv.read();
+        ProcessInterestResponse(Character.toString(interestResponse.charAt(4)));
 
         send.start();
         recv.start();
@@ -266,20 +268,29 @@ public class peerProcess {
       }
     }
 
-    public void ProcessInterestResponse() {
+    public void ProcessInterestResponse(String interestResponse) {
       try {
-        String interestResponse = recv.read();
-        if (interestResponse.charAt(4) == '2') {
+        if (interestResponse.equals("2")) {
           // Add interested peer to our list (mostly for peers with completed sets)
           semPeersInterested.acquire();
-          peersInterested.add(this.peerId);
+
+          if (!peersInterested.contains(this.peerId)) {
+            peersInterested.add(this.peerId);
+          }
+
           semPeersInterested.release();
 
-          System.out.println("Peer interested");
           Log.receiveInterestedMessage(peerId);
 
-        } else if (interestResponse.charAt(4) == '3') {
-          System.out.println("Peer not interested");
+        } else if (interestResponse.equals("3")) {
+          semPeersInterested.acquire();
+          
+          if (peersInterested.contains(this.peerId)) {
+            peersInterested.remove(this.peerId);
+          }
+
+          semPeersInterested.release();
+          
           Log.receiveNotInterestedMessage(peerId);
 
         } else {
@@ -287,7 +298,6 @@ public class peerProcess {
           throw new Exception("Invalid response from " + peerId + ".\n Expected interested or not interested message.\n Received: " + interestResponse);
 
         }
-
       } catch (InterruptedException e) {
         e.printStackTrace();
         System.err.println("Semaphor related error most likely" + e);
@@ -794,6 +804,8 @@ public class peerProcess {
 
                         Log.receiveNotInterestedMessage(peerId);
                         //System.out.println("Received not interested");
+                        String notInterestedRes = Integer.toString(msgType);
+                        ProcessInterestResponse(notInterestedRes);
                         break;
                     case 4:
                         //System.out.println("Received have");
