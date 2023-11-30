@@ -784,9 +784,11 @@ public class peerProcess {
                         boolean interestingPiece = !myBitfield.hasPiece(haveIndex); //if we don't have it, it's interesting
                         peerBitfield.addPiece(haveIndex);
                         if(interestingPiece){
-                            send.sendMessage(new message(5, message.MessageType.interested, ""));
-                            iDesiredPieces.add(haveIndex);
+                          iDesiredPieces.add(haveIndex);
                           }
+                        if(iDesiredPieces.size() != 0) {
+                          send.sendMessage(new message(5, message.MessageType.interested, ""));
+                        }
                         else{
                           send.sendMessage(new message(5, message.MessageType.notInterested, ""));
                         }
