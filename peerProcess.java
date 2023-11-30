@@ -1095,7 +1095,6 @@ public class peerProcess {
   public void recalculateDownloaders() {
     Random rand = new Random();
     System.out.println("mybitfield: " + myBitfield.getBitfield());
-    Log.recaclculatingDownloadSpeeds();
     try {
       semPeersInterested.acquire();
       System.out.println("Interested peers: " + peersInterested);
@@ -1183,7 +1182,7 @@ public class peerProcess {
         currConnection.send.write(choke);
         currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
       }
-
+      Log.recaclculatingDownloadSpeeds(toBeNeighbors);
 
     } catch (InterruptedException e) {
       e.printStackTrace();

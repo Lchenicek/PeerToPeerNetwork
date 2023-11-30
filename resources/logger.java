@@ -3,6 +3,7 @@ package resources;
 import java.io.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Vector;
 
 public class logger {
@@ -81,10 +82,21 @@ public class logger {
         writeEntry(logEntry);
     }
 
-    public void recaclculatingDownloadSpeeds(){
+    public void recaclculatingDownloadSpeeds(ArrayList<Integer> neighborIds){
         //FIXME: delete this, I'm just using it to test
-        String logEntry = startEntry() + "is recalculating the download speeds of it's neighbors\n";
-        writeEntry(logEntry);
+        String neighborList = "";
+        for (int neighbor : neighborIds) {
+            neighborList = neighborList + neighbor + ", ";
+        }
+        if (neighborList.length() > 1) {
+            neighborList = neighborList.substring(0, neighborList.length() - 2);
+            String logEntry = startEntry() + "has as the preferred neighbors " + neighborList + ".\n";
+            writeEntry(logEntry);
+        }
+        else {
+            String logEntry = startEntry() + "has no preferred neighbors.\n";
+            writeEntry(logEntry);
+        }
     }
 
     private String startEntry(){
