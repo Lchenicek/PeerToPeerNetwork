@@ -81,6 +81,12 @@ public class logger {
         writeEntry(logEntry);
     }
 
+    public void recaclculatingDownloadSpeeds(){
+        //FIXME: delete this, I'm just using it to test
+        String logEntry = startEntry() + "is recalculating the download speeds of it's neighbors\n";
+        writeEntry(logEntry);
+    }
+
     private String startEntry(){
         LocalDateTime now = LocalDateTime.now();    //get the current time
         String formattedDateTime = now.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);   //convert it to a string formatted in iso standard

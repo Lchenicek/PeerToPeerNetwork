@@ -72,6 +72,8 @@ public class peerProcess {
     String bitfieldMsg; // Bitfield of pieces contained by the connected peer.
     bitfield peerBitfield;
 
+    public int piecesDownloadedThisPeriod = 0;
+
     // Client connectipon
     public peerConnection(peerInfo info) { // constructor for if this peer is connecting to another peer. we make the
                                            // socket
@@ -678,6 +680,7 @@ public class peerProcess {
 
     private class peerConnectionReceive extends Thread {
       private ObjectInputStream in;
+      private boolean choked = true;
       // no outstream because this is just a reader
 
       public peerConnectionReceive(Socket _connection) {
@@ -718,7 +721,7 @@ public class peerProcess {
         }
       }
 
-      public void requestPieceFromPeer() {
+      public synchronized void requestPieceFromPeer() {
         try {
           if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
             return;
@@ -765,9 +768,16 @@ public class peerProcess {
                 switch (msgType) {
                     case 0:
                         System.out.println("Received choke");
+                        choked = true;
                         break;
                     case 1:
-                        System.out.println("Received unchoke");
+                        if (choked) {
+                          System.out.println("Received unchoke");
+                          //If we were choked, then it's time to start sending request messages again
+                          requestPieceFromPeer();
+                        }
+                        //if we were already unchoked, then there's no need to do anything
+                        choked = false;
                         break;
                     case 2:
                         //System.out.println("Received interested");
@@ -825,6 +835,8 @@ public class peerProcess {
                         iDesiredPieces.remove(Integer.valueOf(pieceIndex));
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
+                        piecesDownloadedThisPeriod += 1;
+                        //FIXME: we should recheck if we're still interested in this peer and send not interested if not somewhere in case 7
 
                         message haveMessage = new message(9, message.MessageType.have, Integer.toString(pieceIndex));
 
@@ -841,7 +853,7 @@ public class peerProcess {
                             System.out.println("Finished Reading File");
                             fileManagerSemaphor.release();
                         }
-                        else if (iDesiredPieces.size() > 0) {
+                        else if (iDesiredPieces.size() > 0 && !choked) {
                           requestPieceFromPeer();
                         }
                         break;
@@ -855,7 +867,7 @@ public class peerProcess {
             }
 
             if(myBitfield.hasFile() && controlShutdown){
-              boolean shutdown = false;
+              boolean shutdown = true;
                 for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                   peerConnection peer = entry.getValue();
                   bitfield otherBitfield = peer.peerBitfield;
@@ -1064,7 +1076,104 @@ public class peerProcess {
   }
 
   public void recalculateDownloaders() {
-    System.out.println("Interested peers: " + peersInterested);
+    Random rand = new Random();
+    System.out.println("mybitfield: " + myBitfield.getBitfield());
+    Log.recaclculatingDownloadSpeeds();
+    try {
+      semPeersInterested.acquire();
+      System.out.println("Interested peers: " + peersInterested);
+      ArrayList<Integer> toBeNeighbors = new ArrayList<>(); //Stores the k unchoked neighbors
+
+      //Selecting preferred neightbors
+      if (!myBitfield.hasFile()) {
+        //If we don't have a complete file, we calculate download rates
+        for (int peerId : peersInterested) {
+          peerConnection currPeer = getPeerConnection(peerId);
+          System.out.println("Pieces downloaded: " + currPeer.piecesDownloadedThisPeriod);
+          if (currPeer.piecesDownloadedThisPeriod > 0 && toBeNeighbors.size() == 0) {
+            //In this case we add it
+            toBeNeighbors.add(peerId);
+          }
+          else if (currPeer.piecesDownloadedThisPeriod > 0 && toBeNeighbors.size() < numberOfPreferredNeighbors) {
+            //Still always add it but keep it sorted (lower index is highest)
+            for (int i = 0; i < toBeNeighbors.size(); ++i) {
+              //If we've downloaded more, we get take their position
+              if (getPeerConnection(toBeNeighbors.get(i)).piecesDownloadedThisPeriod <= currPeer.piecesDownloadedThisPeriod) {
+                toBeNeighbors.add(i, peerId);
+                break;
+              }
+            }
+          }
+          else if (currPeer.piecesDownloadedThisPeriod > 0 && currPeer.piecesDownloadedThisPeriod > getPeerConnection(toBeNeighbors.get(numberOfPreferredNeighbors - 1)).piecesDownloadedThisPeriod) {
+            //Now we have a full list but the currPeer is greater than at least the smallest element (the rightmost)
+            for (int i = 0; i < toBeNeighbors.size(); ++i) {
+              //If we've downloaded more, we get take their position
+              if (getPeerConnection(toBeNeighbors.get(i)).piecesDownloadedThisPeriod <= currPeer.piecesDownloadedThisPeriod) {
+                toBeNeighbors.add(i, peerId);
+                break;
+              }
+            }
+            //Unlike before, now we've got to boot out the excess
+            toBeNeighbors.remove(numberOfPreferredNeighbors); //since if numOfPerfNei = 5, we now have 6 elements in the list, so we remove index 5
+          }
+          //And if we don't pass any of these conditionals, we either have 0 or not more than any previous ones
+        }
+        //However, if we don't have at least numPrefNeig in the list, all others must be tied for 0, so we pick randomly (since ties are broken randomly)
+        if (toBeNeighbors.size() < numberOfPreferredNeighbors) {
+          //Create a list of all peers that weren't picked
+          ArrayList<Integer> notPicked = new ArrayList<>(peersInterested);
+          for (int peerId : toBeNeighbors) {
+            //removing all selected peers
+            notPicked.remove(Integer.valueOf(peerId));
+          }
+          while (toBeNeighbors.size() < numberOfPreferredNeighbors && notPicked.size() > 0) {
+            //We end this while loop by either having enough interested neighbors or running out of interested neighbors to pick
+            int randomIndex = rand.nextInt(notPicked.size());
+            int randomId = notPicked.get(randomIndex);
+            toBeNeighbors.add(randomId);
+            notPicked.remove(randomIndex);
+          }
+        }
+        //And at this point we finally have our list of preferred neighbors in toBeNeighbors
+      }
+      else {
+        //If we have the file, just pick k random neighbors
+        ArrayList<Integer> notPicked = new ArrayList<>(peersInterested);
+        while (toBeNeighbors.size() < numberOfPreferredNeighbors && notPicked.size() > 0) {
+          //We end this while loop by either having enough interested neighbors or running out of interested neighbors to pick
+          int randomIndex = rand.nextInt(notPicked.size());
+          int randomId = notPicked.get(randomIndex);
+          toBeNeighbors.add(randomId);
+          notPicked.remove(randomIndex);
+        }
+      }
+
+      //Now that we have our neighbors, send out choke and unchoke messages
+      ArrayList<Integer> notPicked = new ArrayList<>(peersInterested);
+      for (int peerId : toBeNeighbors) {
+        //removing all selected peers
+        notPicked.remove(Integer.valueOf(peerId));
+      }
+      for (Integer id : notPicked) {
+        peerConnection currConnection = getPeerConnection(id);
+        message choke = new message(0, message.MessageType.choke);
+        currConnection.send.write(choke);
+        currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
+      }
+      for (Integer id : toBeNeighbors) {
+        peerConnection currConnection = getPeerConnection(id);
+        message choke = new message(0, message.MessageType.unchoke);
+        currConnection.send.write(choke);
+        currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
+      }
+
+
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    semPeersInterested.release();
   }
 
   public static void main(String[] args) throws Exception {
@@ -1075,6 +1184,7 @@ public class peerProcess {
     peerProcess Peer = new peerProcess(args[0]); // I think this is how to construct in java it has been a moment
     Random rand = new Random();
 
+    /*
     if (!Peer.hasFile) {
       for (Map.Entry<Integer, peerConnection> entry : Peer.peerConnections.entrySet()) {
         // key is id and value is connection
@@ -1086,8 +1196,8 @@ public class peerProcess {
         }
       }
     }
+    */
 
-    int i = 0;
     // Should go right before loop
     long lastRecalc = System.currentTimeMillis();
     while (true) {
