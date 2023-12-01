@@ -705,8 +705,8 @@ public class peerProcess {
           shouldBeString = (String) in.readObject();
           return (String) shouldBeString;
         } catch (Exception e) {
-          System.err.println("Error reading! " + e + " where we received a " + shouldBeString.getClass() + " and says: " + shouldBeString + ".\n");
-          System.exit(-1);
+          //System.err.println("Error reading! " + e + " where we received a " + shouldBeString.getClass() + " and says: " + shouldBeString + ".\n");
+          //System.exit(-1);
           return ""; // need a return type always
         }
       }
@@ -778,7 +778,7 @@ public class peerProcess {
                 try{
                   msgType = piece.charAt(4) - '0';
                 } catch(StringIndexOutOfBoundsException e){
-                  System.err.print("Message was too short: " + piece + ".\n");
+                  //System.err.print("Message was too short: " + piece + ".\n");
                 }
 
                 switch (msgType) {
