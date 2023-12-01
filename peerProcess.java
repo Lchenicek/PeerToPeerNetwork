@@ -803,9 +803,6 @@ public class peerProcess {
                         semPeersInterested.release();
 
                         Log.receiveNotInterestedMessage(peerId);
-                        //System.out.println("Received not interested");
-                        String notInterestedRes = Integer.toString(msgType);
-                        ProcessInterestResponse(notInterestedRes);
                         break;
                     case 4:
                         //System.out.println("Received have");
