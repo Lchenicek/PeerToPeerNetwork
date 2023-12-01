@@ -122,6 +122,12 @@ public class logger {
         writeEntry(logEntry);
     }
 
+    public void sendingMessage(String msg, int peer) {
+        //FIXME: delete this, only for testing
+        String logEntry = startEntry() + "is sending message: " + msg + " to peer " + peer + ".\n";
+        writeEntry(logEntry);
+    }
+
     public void choked(int peer) {
         String logEntry = startEntry() + "is choked by " + Integer.toString(peer) + ".\n";
         writeEntry(logEntry);

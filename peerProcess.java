@@ -324,9 +324,10 @@ public class peerProcess {
 
       public void write(message m) {
         try {
-          if (m.getMessage() == null) {
+          if (m.getMessage() == null || Objects.equals(m.getMessage(), "")) {
             Log.sendingNullMessage(peerId);
           }
+          Log.sendingMessage(m.getMessage(), peerId);
           out.writeObject(m.getMessage());
           out.flush();
         } catch (Exception e) {
@@ -699,12 +700,13 @@ public class peerProcess {
       }
 
       public String read() {
-        Object shouldBeString = "";
+        String shouldBeString = "";
         try {
-          shouldBeString = in.readObject();
+          shouldBeString = (String) in.readObject();
           return (String) shouldBeString;
         } catch (Exception e) {
-          System.err.println("Error reading! " + e + " where we received a " + shouldBeString.getClass() + ".\n");
+          System.err.println("Error reading! " + e + " where we received a " + shouldBeString.getClass() + " and says: " + shouldBeString + ".\n");
+          System.exit(-1);
           return ""; // need a return type always
         }
       }
@@ -731,6 +733,7 @@ public class peerProcess {
 
       public synchronized void requestPieceFromPeer() {
         try {
+          requestPieceSemaphore.acquire();
           Log.beginRequest(peerId);
           System.out.println("Outstanding PieceRequests: " + outstandingPieceRequests);
           if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
@@ -740,7 +743,6 @@ public class peerProcess {
           //if there are current as many outstanding request as there are missing pieces, there's nothing to request
           Random rand = new Random();
 
-          requestPieceSemaphore.acquire();
           boolean lookingForPiece = true;
           int piece = -1;
           while(lookingForPiece){
@@ -901,7 +903,7 @@ public class peerProcess {
                   peerConnection peer = entry.getValue();
                   peer.send.write(new message(5, message.MessageType.shutdown, ""));
                 }
-                System.exit(0); 
+                System.exit(0);
               }
             }
           }

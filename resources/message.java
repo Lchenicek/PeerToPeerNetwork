@@ -24,7 +24,7 @@ public class message {
     int messageLength;
     MessageType messageType;
     String messagePayload; //I'm not sure how the message payload is supposed to be stored/transmitted (I'm assuming for now it's an int)
-    String msg;
+    String msg = "Empty message";
     byte[] msgBytes; // Stores complete message as byte array.
 
     public message(int messageLength, MessageType messageType, String messagePayload) {
