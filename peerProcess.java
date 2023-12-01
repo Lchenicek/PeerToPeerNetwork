@@ -72,6 +72,8 @@ public class peerProcess {
     String bitfieldMsg; // Bitfield of pieces contained by the connected peer.
     bitfield peerBitfield;
 
+    boolean hasOutstandingRequest = false;
+
     public int piecesDownloadedThisPeriod = 0;
 
     // Client connectipon
@@ -733,9 +735,12 @@ public class peerProcess {
 
       public synchronized void requestPieceFromPeer() {
         try {
+          System.out.println(peerId + " requesting.");
+          System.out.println("Outstanding PieceRequests: " + outstandingPieceRequests);
           if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
             return;
           }
+
           //if there are current as many outstanding request as there are missing pieces, there's nothing to request
           Random rand = new Random();
 
@@ -753,6 +758,9 @@ public class peerProcess {
           requestPieceSemaphore.release();
           //make sure the piece we're requesting isn't already in flight
 
+          System.out.println("Requesting piece: " + piece);
+
+          hasOutstandingRequest = true;
           message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
           send.sendMessage(pieceRequest);
         } catch (Exception e) {
@@ -781,7 +789,9 @@ public class peerProcess {
                         choked = true;
                         break;
                     case 1:
-                        if (choked) {
+                        System.out.println("hasOutstandingRequest: " + hasOutstandingRequest);
+                        //System.out.println("Choked: " + choked);
+                        if (!hasOutstandingRequest) {
                           //If we were choked, then it's time to start sending request messages again
                           requestPieceFromPeer();
                         }
@@ -803,9 +813,6 @@ public class peerProcess {
                         semPeersInterested.release();
 
                         Log.receiveNotInterestedMessage(peerId);
-                        //System.out.println("Received not interested");
-                        String notInterestedRes = Integer.toString(msgType);
-                        ProcessInterestResponse(notInterestedRes);
                         break;
                     case 4:
                         //System.out.println("Received have");
@@ -850,6 +857,7 @@ public class peerProcess {
                         if (iDesiredPieces.size() == 0) {
                           send.sendMessage(new message(5, message.MessageType.notInterested, ""));
                         }
+                        System.out.println("Removing piece " + pieceIndex);
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
                         piecesDownloadedThisPeriod += 1;
