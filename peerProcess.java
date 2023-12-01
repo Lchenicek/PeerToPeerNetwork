@@ -34,7 +34,7 @@ public class peerProcess {
   Semaphore requestPieceSemaphore = new Semaphore(1);
   // we should probably have a binary semaphore for writing to the file
 
-  Set<Integer> outstandingPieceRequests = new HashSet<Integer>(); //Represents pieces we've already requested
+  Set<Integer> outstandingPieceRequests = new HashSet<Integer>(); // Represents pieces we've already requested
 
   // Semaphors cuz threading
   Set<Integer> peersInterested = new HashSet<>(); // Peers interested in our data
@@ -162,7 +162,8 @@ public class peerProcess {
         recv.start();
 
       } catch (Exception e) {
-        e.printStackTrace();;
+        e.printStackTrace();
+        ;
       }
     }
 
@@ -284,18 +285,19 @@ public class peerProcess {
 
         } else if (interestResponse.equals("3")) {
           semPeersInterested.acquire();
-          
+
           if (peersInterested.contains(this.peerId)) {
             peersInterested.remove(this.peerId);
           }
 
           semPeersInterested.release();
-          
+
           Log.receiveNotInterestedMessage(peerId);
 
         } else {
           // Received neither "interested" nor "not interested" message.
-          throw new Exception("Invalid response from " + peerId + ".\n Expected interested or not interested message.\n Received: " + interestResponse);
+          throw new Exception("Invalid response from " + peerId
+              + ".\n Expected interested or not interested message.\n Received: " + interestResponse);
 
         }
       } catch (InterruptedException e) {
@@ -303,7 +305,7 @@ public class peerProcess {
         System.err.println("Semaphor related error most likely" + e);
       } catch (Exception e) {
         e.printStackTrace();
-      } 
+      }
     }
 
     private class peerConnectionSend extends Thread { // threads so 1 socket doesn't block connections to other peers
@@ -425,25 +427,27 @@ public class peerProcess {
 
       public synchronized void requestPieceFromPeer() {
         try {
-          if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
+          if (outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())) {
             return;
           }
-          //if there are current as many outstanding request as there are missing pieces, there's nothing to request
+          // if there are current as many outstanding request as there are missing pieces,
+          // there's nothing to request
           Random rand = new Random();
 
           requestPieceSemaphore.acquire();
           boolean lookingForPiece = true;
           int piece = -1;
-          while(lookingForPiece){
+          while (lookingForPiece) {
             piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
-            if(!outstandingPieceRequests.contains(piece)){
-               lookingForPiece = false;
-               outstandingPieceRequests.add(piece);
+            if (!outstandingPieceRequests.contains(piece)) {
+              lookingForPiece = false;
+              outstandingPieceRequests.add(piece);
             }
-            //if the index we generated isn't current being request, add it to outgoing requests and request it
+            // if the index we generated isn't current being request, add it to outgoing
+            // requests and request it
           }
           requestPieceSemaphore.release();
-          //make sure the piece we're requesting isn't already in flight
+          // make sure the piece we're requesting isn't already in flight
 
           message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
           send.sendMessage(pieceRequest);
@@ -454,146 +458,146 @@ public class peerProcess {
 
       public void run() {
         System.out.println("run begins");
-        while(true){
+        while (true) {
+          try {
+            // Process only piece messages in order rn
+            String piece = read();
+
+            // converts it to an int
+            int msgType = -1;
             try {
-                //Process only piece messages in order rn
-                String piece = read();
-
-                //converts it to an int
-                int msgType = -1;
-                try{
-                  msgType = piece.charAt(4) - '0';
-                } catch(StringIndexOutOfBoundsException e){
-                  System.err.print(" ");
-                }
-
-                switch (msgType) {
-                    case 0:
-                        Log.choked(peerId);
-                        choked = true;
-                        break;
-                    case 1:
-                        if (choked) {
-                          //If we were choked, then it's time to start sending request messages again
-                          requestPieceFromPeer();
-                        }
-                        Log.unchoked(peerId);
-                        //if we were already unchoked, then there's no need to do anything
-                        choked = false;
-                        break;
-                    case 2:
-                        //System.out.println("Received interested");
-                        semPeersInterested.acquire();
-                        peersInterested.add(peerId); // Add peer to list of peers interested
-                        semPeersInterested.release();
-
-                        Log.receiveInterestedMessage(peerId);
-                        break;
-                    case 3:
-                        semPeersInterested.acquire();
-                        peersInterested.remove(peerId); // Removes peer from list if so
-                        semPeersInterested.release();
-
-                        Log.receiveNotInterestedMessage(peerId);
-                        //System.out.println("Received not interested");
-                        String notInterestedRes = Integer.toString(msgType);
-                        ProcessInterestResponse(notInterestedRes);
-                        break;
-                    case 4:
-                        //System.out.println("Received have");
-                        int haveIndex = Integer.parseInt(piece.substring(5));
-                        Log.receiveHaveMessage(peerId, haveIndex);
-                        boolean interestingPiece = !myBitfield.hasPiece(haveIndex); //if we don't have it, it's interesting
-                        peerBitfield.addPiece(haveIndex);
-                        iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield()); //Testing recalc
-                        if(interestingPiece){
-                          iDesiredPieces.add(haveIndex);
-                          }
-                        if(iDesiredPieces.size() != 0) {
-                          send.sendMessage(new message(5, message.MessageType.interested, ""));
-                        }
-                        else{
-                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
-                        }
-                        break;
-                    case 5:
-                        System.out.println("Received bitfield");
-                        break;
-                    case 6:
-                        //System.out.println("Received request");
-                        //Process request
-                        String requestPieceString = piece.substring(5);
-                        sendPieceToPeer(Integer.parseInt(requestPieceString));
-                        break;
-                    case 7:
-                        //System.out.println("Received piece");
-
-                        String pieceIndexString = piece.substring(5, 9);
-                        int pieceIndex = Integer.parseInt(pieceIndexString);
-                        String msgPayload = piece.substring(9);
-
-                        fileManagerSemaphor.acquire();
-                        myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
-                        myBitfield.addPiece(pieceIndex);
-                        fileManagerSemaphor.release();
-
-                        //Recalc iDesired pieces in case we have gotten desired pieces from other connections
-                        iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield());
-                        if (iDesiredPieces.size() == 0) {
-                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
-                        }
-                        outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
-                        Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
-                        piecesDownloadedThisPeriod += 1;
-
-                        message haveMessage = new message(9, message.MessageType.have, Integer.toString(pieceIndex));
-
-                        for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
-                          peerConnection peer = entry.getValue();
-                          peer.send.sendMessage(haveMessage);
-                        }
-
-                        if (myBitfield.hasFile()) {
-                            //On the last iteration
-                            fileManagerSemaphor.acquire();
-                            myFileManager.writeToFile();
-                            Log.completeDownload();
-                            System.out.println("Finished Reading File");
-                            fileManagerSemaphor.release();
-                            send.sendMessage(new message(5, message.MessageType.notInterested, ""));
-                        }
-                        else if (iDesiredPieces.size() > 0 && !choked) {
-                          requestPieceFromPeer();
-                        }
-                        break;
-                    case 9:
-                        System.exit(0);
-                    default:
-                        break;
-                }
-            } catch (InterruptedException e) {
-                e.printStackTrace();
+              msgType = piece.charAt(4) - '0';
+            } catch (StringIndexOutOfBoundsException e) {
+              System.err.print(" ");
             }
 
-            if(myBitfield.hasFile() && controlShutdown){
-              boolean shutdown = true;
-                for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
-                  peerConnection peer = entry.getValue();
-                  bitfield otherBitfield = peer.peerBitfield;
-                  if(!otherBitfield.hasFile()) shutdown = false;
+            switch (msgType) {
+              case 0:
+                Log.choked(peerId);
+                choked = true;
+                break;
+              case 1:
+                if (choked) {
+                  // If we were choked, then it's time to start sending request messages again
+                  requestPieceFromPeer();
                 }
-              if(shutdown){ 
-                for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
-                  peerConnection peer = entry.getValue();
-                  peer.send.sendMessage(new message(5, message.MessageType.shutdown, ""));
+                Log.unchoked(peerId);
+                // if we were already unchoked, then there's no need to do anything
+                choked = false;
+                break;
+              case 2:
+                // System.out.println("Received interested");
+                semPeersInterested.acquire();
+                peersInterested.add(peerId); // Add peer to list of peers interested
+                semPeersInterested.release();
+
+                Log.receiveInterestedMessage(peerId);
+                break;
+              case 3:
+                semPeersInterested.acquire();
+                peersInterested.remove(peerId); // Removes peer from list if so
+                semPeersInterested.release();
+
+                Log.receiveNotInterestedMessage(peerId);
+                // System.out.println("Received not interested");
+                String notInterestedRes = Integer.toString(msgType);
+                ProcessInterestResponse(notInterestedRes);
+                break;
+              case 4:
+                // System.out.println("Received have");
+                int haveIndex = Integer.parseInt(piece.substring(5));
+                Log.receiveHaveMessage(peerId, haveIndex);
+                boolean interestingPiece = !myBitfield.hasPiece(haveIndex); // if we don't have it, it's interesting
+                peerBitfield.addPiece(haveIndex);
+                iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield()); // Testing recalc
+                if (interestingPiece) {
+                  iDesiredPieces.add(haveIndex);
                 }
-                System.exit(0); 
+                if (iDesiredPieces.size() != 0) {
+                  send.sendMessage(new message(5, message.MessageType.interested, ""));
+                } else {
+                  send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                }
+                break;
+              case 5:
+                System.out.println("Received bitfield");
+                break;
+              case 6:
+                // System.out.println("Received request");
+                // Process request
+                String requestPieceString = piece.substring(5);
+                sendPieceToPeer(Integer.parseInt(requestPieceString));
+                break;
+              case 7:
+                // System.out.println("Received piece");
+
+                String pieceIndexString = piece.substring(5, 9);
+                int pieceIndex = Integer.parseInt(pieceIndexString);
+                String msgPayload = piece.substring(9);
+
+                fileManagerSemaphor.acquire();
+                myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
+                myBitfield.addPiece(pieceIndex);
+                fileManagerSemaphor.release();
+
+                // Recalc iDesired pieces in case we have gotten desired pieces from other
+                // connections
+                iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield());
+                if (iDesiredPieces.size() == 0) {
+                  send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                }
+                outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
+                Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
+                piecesDownloadedThisPeriod += 1;
+
+                message haveMessage = new message(9, message.MessageType.have, Integer.toString(pieceIndex));
+
+                for (HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()) {
+                  peerConnection peer = entry.getValue();
+                  peer.send.sendMessage(haveMessage);
+                }
+
+                if (myBitfield.hasFile()) {
+                  // On the last iteration
+                  fileManagerSemaphor.acquire();
+                  myFileManager.writeToFile();
+                  Log.completeDownload();
+                  System.out.println("Finished Reading File");
+                  fileManagerSemaphor.release();
+                  send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                } else if (iDesiredPieces.size() > 0 && !choked) {
+                  requestPieceFromPeer();
+                }
+                break;
+              case 9:
+                System.exit(0);
+              default:
+                break;
+            }
+          } catch (InterruptedException e) {
+            e.printStackTrace();
+          }
+
+          if (myBitfield.hasFile() && controlShutdown) {
+            boolean shutdown = true;
+            for (HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()) {
+              peerConnection peer = entry.getValue();
+              bitfield otherBitfield = peer.peerBitfield;
+              if (!otherBitfield.hasFile())
+                shutdown = false;
+            }
+            if (shutdown) {
+              for (HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()) {
+                peerConnection peer = entry.getValue();
+                peer.send.sendMessage(new message(5, message.MessageType.shutdown, ""));
               }
+              System.exit(0);
             }
           }
         }
       }
     }
+  }
 
   public peerProcess(String _id) {
     id = Integer.parseInt(_id);
@@ -696,7 +700,8 @@ public class peerProcess {
       System.err.println("Config file PeerInfo.cfg not found");
       System.exit(-1);
     }
-    if (earlierPeers == 0) controlShutdown = true;
+    if (earlierPeers == 0)
+      controlShutdown = true;
     peerConnections = new HashMap<Integer, peerConnection>();
 
     for (int i = 0; i < earlierPeers; i++) {
@@ -790,65 +795,72 @@ public class peerProcess {
     try {
       semPeersInterested.acquire();
       System.out.println("Interested peers: " + peersInterested);
-      ArrayList<Integer> toBeNeighbors = new ArrayList<>(); //Stores the k unchoked neighbors
+      ArrayList<Integer> toBeNeighbors = new ArrayList<>(); // Stores the k unchoked neighbors
 
-      //Selecting preferred neightbors
+      // Selecting preferred neightbors
       if (!myBitfield.hasFile()) {
-        //If we don't have a complete file, we calculate download rates
+        // If we don't have a complete file, we calculate download rates
         for (int peerId : peersInterested) {
           peerConnection currPeer = getPeerConnection(peerId);
           System.out.println("Pieces downloaded: " + currPeer.piecesDownloadedThisPeriod);
           if (currPeer.piecesDownloadedThisPeriod > 0 && toBeNeighbors.size() == 0) {
-            //In this case we add it
+            // In this case we add it
             toBeNeighbors.add(peerId);
-          }
-          else if (currPeer.piecesDownloadedThisPeriod > 0 && toBeNeighbors.size() < numberOfPreferredNeighbors) {
-            //Still always add it but keep it sorted (lower index is highest)
+          } else if (currPeer.piecesDownloadedThisPeriod > 0 && toBeNeighbors.size() < numberOfPreferredNeighbors) {
+            // Still always add it but keep it sorted (lower index is highest)
             for (int i = 0; i < toBeNeighbors.size(); ++i) {
-              //If we've downloaded more, we get take their position
-              if (getPeerConnection(toBeNeighbors.get(i)).piecesDownloadedThisPeriod <= currPeer.piecesDownloadedThisPeriod) {
+              // If we've downloaded more, we get take their position
+              if (getPeerConnection(
+                  toBeNeighbors.get(i)).piecesDownloadedThisPeriod <= currPeer.piecesDownloadedThisPeriod) {
                 toBeNeighbors.add(i, peerId);
                 break;
               }
             }
-          }
-          else if (currPeer.piecesDownloadedThisPeriod > 0 && currPeer.piecesDownloadedThisPeriod > getPeerConnection(toBeNeighbors.get(numberOfPreferredNeighbors - 1)).piecesDownloadedThisPeriod) {
-            //Now we have a full list but the currPeer is greater than at least the smallest element (the rightmost)
+          } else if (currPeer.piecesDownloadedThisPeriod > 0 && currPeer.piecesDownloadedThisPeriod > getPeerConnection(
+              toBeNeighbors.get(numberOfPreferredNeighbors - 1)).piecesDownloadedThisPeriod) {
+            // Now we have a full list but the currPeer is greater than at least the
+            // smallest element (the rightmost)
             for (int i = 0; i < toBeNeighbors.size(); ++i) {
-              //If we've downloaded more, we get take their position
-              if (getPeerConnection(toBeNeighbors.get(i)).piecesDownloadedThisPeriod <= currPeer.piecesDownloadedThisPeriod) {
+              // If we've downloaded more, we get take their position
+              if (getPeerConnection(
+                  toBeNeighbors.get(i)).piecesDownloadedThisPeriod <= currPeer.piecesDownloadedThisPeriod) {
                 toBeNeighbors.add(i, peerId);
                 break;
               }
             }
-            //Unlike before, now we've got to boot out the excess
-            toBeNeighbors.remove(numberOfPreferredNeighbors); //since if numOfPerfNei = 5, we now have 6 elements in the list, so we remove index 5
+            // Unlike before, now we've got to boot out the excess
+            toBeNeighbors.remove(numberOfPreferredNeighbors); // since if numOfPerfNei = 5, we now have 6 elements in
+                                                              // the list, so we remove index 5
           }
-          //And if we don't pass any of these conditionals, we either have 0 or not more than any previous ones
+          // And if we don't pass any of these conditionals, we either have 0 or not more
+          // than any previous ones
         }
-        //However, if we don't have at least numPrefNeig in the list, all others must be tied for 0, so we pick randomly (since ties are broken randomly)
+        // However, if we don't have at least numPrefNeig in the list, all others must
+        // be tied for 0, so we pick randomly (since ties are broken randomly)
         if (toBeNeighbors.size() < numberOfPreferredNeighbors) {
-          //Create a list of all peers that weren't picked
+          // Create a list of all peers that weren't picked
           ArrayList<Integer> notPicked = new ArrayList<>(peersInterested);
           for (int peerId : toBeNeighbors) {
-            //removing all selected peers
+            // removing all selected peers
             notPicked.remove(Integer.valueOf(peerId));
           }
           while (toBeNeighbors.size() < numberOfPreferredNeighbors && notPicked.size() > 0) {
-            //We end this while loop by either having enough interested neighbors or running out of interested neighbors to pick
+            // We end this while loop by either having enough interested neighbors or
+            // running out of interested neighbors to pick
             int randomIndex = rand.nextInt(notPicked.size());
             int randomId = notPicked.get(randomIndex);
             toBeNeighbors.add(randomId);
             notPicked.remove(randomIndex);
           }
         }
-        //And at this point we finally have our list of preferred neighbors in toBeNeighbors
-      }
-      else {
-        //If we have the file, just pick k random neighbors
+        // And at this point we finally have our list of preferred neighbors in
+        // toBeNeighbors
+      } else {
+        // If we have the file, just pick k random neighbors
         ArrayList<Integer> notPicked = new ArrayList<>(peersInterested);
         while (toBeNeighbors.size() < numberOfPreferredNeighbors && notPicked.size() > 0) {
-          //We end this while loop by either having enough interested neighbors or running out of interested neighbors to pick
+          // We end this while loop by either having enough interested neighbors or
+          // running out of interested neighbors to pick
           int randomIndex = rand.nextInt(notPicked.size());
           int randomId = notPicked.get(randomIndex);
           toBeNeighbors.add(randomId);
@@ -856,23 +868,23 @@ public class peerProcess {
         }
       }
 
-      //Now that we have our neighbors, send out choke and unchoke messages
+      // Now that we have our neighbors, send out choke and unchoke messages
       ArrayList<Integer> notPicked = new ArrayList<>(peersInterested);
       for (int peerId : toBeNeighbors) {
-        //removing all selected peers
+        // removing all selected peers
         notPicked.remove(Integer.valueOf(peerId));
       }
       for (Integer id : notPicked) {
         peerConnection currConnection = getPeerConnection(id);
         message choke = new message(0, message.MessageType.choke);
         currConnection.send.write(choke);
-        currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
+        currConnection.piecesDownloadedThisPeriod = 0; // Resetting this value
       }
       for (Integer id : toBeNeighbors) {
         peerConnection currConnection = getPeerConnection(id);
         message choke = new message(0, message.MessageType.unchoke);
         currConnection.send.write(choke);
-        currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
+        currConnection.piecesDownloadedThisPeriod = 0; // Resetting this value
       }
       Log.recaclculatingDownloadSpeeds(toBeNeighbors);
 
@@ -893,18 +905,21 @@ public class peerProcess {
     Random rand = new Random();
 
     /*
-    if (!Peer.hasFile) {
-      for (Map.Entry<Integer, peerConnection> entry : Peer.peerConnections.entrySet()) {
-        // key is id and value is connection
-        if (entry.getValue().iDesiredPieces.size() > 0) {
-          Peer.fileManagerSemaphor.acquire();
-          int pieceToRequest = entry.getValue().iDesiredPieces.get(rand.nextInt(entry.getValue().iDesiredPieces.size()));
-          Peer.fileManagerSemaphor.release();
-          Peer.requestPieceFromPeer(entry.getValue(), pieceToRequest);
-        }
-      }
-    }
-    */
+     * if (!Peer.hasFile) {
+     * for (Map.Entry<Integer, peerConnection> entry :
+     * Peer.peerConnections.entrySet()) {
+     * // key is id and value is connection
+     * if (entry.getValue().iDesiredPieces.size() > 0) {
+     * Peer.fileManagerSemaphor.acquire();
+     * int pieceToRequest =
+     * entry.getValue().iDesiredPieces.get(rand.nextInt(entry.getValue().
+     * iDesiredPieces.size()));
+     * Peer.fileManagerSemaphor.release();
+     * Peer.requestPieceFromPeer(entry.getValue(), pieceToRequest);
+     * }
+     * }
+     * }
+     */
 
     // Should go right before loop
     long lastRecalc = System.currentTimeMillis();
@@ -916,13 +931,13 @@ public class peerProcess {
 
       // Peer who has file
       /*
-      if (Peer.hasFile && i < Peer.pieceCount) {
-        Peer.sendPieceToPeer(selectedPeer, i);
-        i = i + 1;
-        if (i == Peer.pieceCount) {
-          System.out.println("Finished Sending File");
-        }
-      }
+       * if (Peer.hasFile && i < Peer.pieceCount) {
+       * Peer.sendPieceToPeer(selectedPeer, i);
+       * i = i + 1;
+       * if (i == Peer.pieceCount) {
+       * System.out.println("Finished Sending File");
+       * }
+       * }
        */
     }
     // will need to use threads (barf)
