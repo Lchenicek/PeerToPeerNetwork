@@ -83,7 +83,6 @@ public class logger {
     }
 
     public void recaclculatingDownloadSpeeds(ArrayList<Integer> neighborIds){
-        //FIXME: delete this, I'm just using it to test
         String neighborList = "";
         for (int neighbor : neighborIds) {
             neighborList = neighborList + neighbor + ", ";
@@ -99,6 +98,30 @@ public class logger {
         }
     }
 
+    public void receivedRequest(String piece, int peer) {
+        //FIXME: delete this, only for testing
+        String logEntry = startEntry() + "has received a request for piece " + piece + " from peer " + peer + ".\n";
+        writeEntry(logEntry);
+    }
+
+    public void beginRequest(int peer) {
+        //FIXME: delete this, only for testing
+        String logEntry = startEntry() + "is requesting from peer " + peer + ".\n";
+        writeEntry(logEntry);
+    }
+
+    public void sendingRequest(int piece, int peer) {
+        //FIXME: delete this, only for testing
+        String logEntry = startEntry() + "is requesting piece " + piece + " from peer " + peer + ".\n";
+        writeEntry(logEntry);
+    }
+
+    public void sendingNullMessage(int peer) {
+        //FIXME: delete this, only for testing
+        String logEntry = startEntry() + "is attempting to send a null message to peer " + peer + ".\n";
+        writeEntry(logEntry);
+    }
+
     public void choked(int peer) {
         String logEntry = startEntry() + "is choked by " + Integer.toString(peer) + ".\n";
         writeEntry(logEntry);
@@ -108,6 +131,7 @@ public class logger {
         String logEntry = startEntry() + "is unchoked by " + Integer.toString(peer) + ".\n";
         writeEntry(logEntry);
     }
+
 
     private String startEntry(){
         LocalDateTime now = LocalDateTime.now();    //get the current time

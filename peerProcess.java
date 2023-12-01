@@ -318,29 +318,23 @@ public class peerProcess {
           out.flush(); // not sure why we need to flush it right away? sample does. guess it's good
                        // practive
         } catch (Exception e) {
-          System.err.println(e.getMessage());
+          System.err.println(e);
         }
       }
 
       public void write(message m) {
         try {
+          if (m.getMessage() == null) {
+            Log.sendingNullMessage(peerId);
+          }
           out.writeObject(m.getMessage());
           out.flush();
         } catch (Exception e) {
-          System.err.println(e.getMessage());
+          System.err.println(e);
         }
       }
       // used when something else tells this socket to write a message
       // not sure how much it'll come up, but we need it for the constructor at least
-
-      public void sendMessage(message m) {
-        try {
-          out.writeObject(m.getMessage());
-          out.flush();
-        } catch (Exception e) {
-          System.err.println(e.getMessage());
-        }
-      }
 
       /*
        * public peerConnectionSend(Socket connection, peerInfo peer, boolean isServer)
@@ -705,10 +699,12 @@ public class peerProcess {
       }
 
       public String read() {
+        Object shouldBeString = "";
         try {
-          return (String) in.readObject();
+          shouldBeString = in.readObject();
+          return (String) shouldBeString;
         } catch (Exception e) {
-          System.err.println(e.getMessage());
+          System.err.println("Error reading! " + e + " where we received a " + shouldBeString.getClass() + ".\n");
           return ""; // need a return type always
         }
       }
@@ -727,7 +723,7 @@ public class peerProcess {
           }
           msgPayload = indexBinary + msgPayload;
           message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-          send.sendMessage(pieceMsg);
+          send.write(pieceMsg);
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -735,7 +731,7 @@ public class peerProcess {
 
       public synchronized void requestPieceFromPeer() {
         try {
-          System.out.println(peerId + " requesting.");
+          Log.beginRequest(peerId);
           System.out.println("Outstanding PieceRequests: " + outstandingPieceRequests);
           if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
             return;
@@ -758,11 +754,11 @@ public class peerProcess {
           requestPieceSemaphore.release();
           //make sure the piece we're requesting isn't already in flight
 
-          System.out.println("Requesting piece: " + piece);
+          Log.sendingRequest(piece, peerId);
 
           hasOutstandingRequest = true;
           message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
-          send.sendMessage(pieceRequest);
+          send.write(pieceRequest);
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -780,7 +776,7 @@ public class peerProcess {
                 try{
                   msgType = piece.charAt(4) - '0';
                 } catch(StringIndexOutOfBoundsException e){
-                  System.err.print(" ");
+                  System.err.print("Message was too short: " + piece + ".\n");
                 }
 
                 switch (msgType) {
@@ -825,10 +821,10 @@ public class peerProcess {
                           iDesiredPieces.add(haveIndex);
                           }
                         if(iDesiredPieces.size() != 0) {
-                          send.sendMessage(new message(5, message.MessageType.interested, ""));
+                          send.write(new message(5, message.MessageType.interested, ""));
                         }
                         else{
-                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                          send.write(new message(5, message.MessageType.notInterested, ""));
                         }
                         break;
                     case 5:
@@ -837,7 +833,9 @@ public class peerProcess {
                     case 6:
                         //System.out.println("Received request");
                         //Process request
+
                         String requestPieceString = piece.substring(5);
+                        Log.receivedRequest(requestPieceString, peerId);
                         sendPieceToPeer(Integer.parseInt(requestPieceString));
                         break;
                     case 7:
@@ -855,7 +853,7 @@ public class peerProcess {
                         //Recalc iDesired pieces in case we have gotten desired pieces from other connections
                         iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield());
                         if (iDesiredPieces.size() == 0) {
-                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                          send.write(new message(5, message.MessageType.notInterested, ""));
                         }
                         System.out.println("Removing piece " + pieceIndex);
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
@@ -866,7 +864,7 @@ public class peerProcess {
 
                         for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                           peerConnection peer = entry.getValue();
-                          peer.send.sendMessage(haveMessage);
+                          peer.send.write(haveMessage);
                         }
 
                         if (myBitfield.hasFile()) {
@@ -876,7 +874,7 @@ public class peerProcess {
                             Log.completeDownload();
                             System.out.println("Finished Reading File");
                             fileManagerSemaphor.release();
-                            send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                            send.write(new message(5, message.MessageType.notInterested, ""));
                         }
                         else if (iDesiredPieces.size() > 0 && !choked) {
                           requestPieceFromPeer();
@@ -901,7 +899,7 @@ public class peerProcess {
               if(shutdown){ 
                 for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                   peerConnection peer = entry.getValue();
-                  peer.send.sendMessage(new message(5, message.MessageType.shutdown, ""));
+                  peer.send.write(new message(5, message.MessageType.shutdown, ""));
                 }
                 System.exit(0); 
               }
@@ -1085,7 +1083,7 @@ public class peerProcess {
       }
       msgPayload = indexBinary + msgPayload;
       message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-      getPeerConnection(peer).send.sendMessage(pieceMsg);
+      getPeerConnection(peer).send.write(pieceMsg);
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -1094,7 +1092,7 @@ public class peerProcess {
   public void requestPieceFromPeer(peerConnection pC, int piece) {
     try {
       message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
-      pC.send.sendMessage(pieceRequest);
+      pC.send.write(pieceRequest);
     } catch (Exception e) {
       e.printStackTrace();
     }
