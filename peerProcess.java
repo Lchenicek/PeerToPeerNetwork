@@ -59,18 +59,24 @@ public class peerProcess {
   // could be bad java but i'm bootlegging a struct
   private class peerConnection {
 
+    Semaphore writeSemaphore = new Semaphore(1);
+    Semaphore readSemaphore = new Semaphore(1);
+
     public peerConnectionSend send;
     public peerConnectionReceive recv;
 
     private int peerId;
     private Socket connection;
     ArrayList<Integer> iDesiredPieces; // Indices of pieces that the process owner needs.
+    Semaphore desiredPiecesSemaphor = new Semaphore(1);
 
     // Records whether a handshake has been successfully sent/received between
     // connected peers.
     private Map<Integer, Boolean> handshakeSuccessStatus = new HashMap<Integer, Boolean>();
     String bitfieldMsg; // Bitfield of pieces contained by the connected peer.
     bitfield peerBitfield;
+
+    boolean hasOutstandingRequest = false;
 
     public int piecesDownloadedThisPeriod = 0;
 
@@ -235,7 +241,9 @@ public class peerProcess {
          * The indices are relative to entire bitfield message.
          * Therefore, index 5 corresponds to the index of first piece
          */
+        desiredPiecesSemaphor.acquire();
         iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
+        desiredPiecesSemaphor.release();
 
       } catch (Exception e) {
         e.printStackTrace();
@@ -316,29 +324,22 @@ public class peerProcess {
           out.flush(); // not sure why we need to flush it right away? sample does. guess it's good
                        // practive
         } catch (Exception e) {
-          System.err.println(e.getMessage());
+          System.err.println(e);
         }
       }
 
       public void write(message m) {
         try {
+          writeSemaphore.acquire();
           out.writeObject(m.getMessage());
           out.flush();
+          writeSemaphore.release();
         } catch (Exception e) {
-          System.err.println(e.getMessage());
+          System.err.println(e);
         }
       }
       // used when something else tells this socket to write a message
       // not sure how much it'll come up, but we need it for the constructor at least
-
-      public void sendMessage(message m) {
-        try {
-          out.writeObject(m.getMessage());
-          out.flush();
-        } catch (Exception e) {
-          System.err.println(e.getMessage());
-        }
-      }
 
       /*
        * public peerConnectionSend(Socket connection, peerInfo peer, boolean isServer)
@@ -703,10 +704,15 @@ public class peerProcess {
       }
 
       public String read() {
+        String shouldBeString = "";
         try {
-          return (String) in.readObject();
+          readSemaphore.acquire();
+          shouldBeString = (String) in.readObject();
+          readSemaphore.release();
+          return (String) shouldBeString;
         } catch (Exception e) {
-          System.err.println(e.getMessage());
+          //System.err.println("Error reading! " + e + " where we received a " + shouldBeString.getClass() + " and says: " + shouldBeString + ".\n");
+          //System.exit(-1);
           return ""; // need a return type always
         }
       }
@@ -715,9 +721,11 @@ public class peerProcess {
         try {
           // getPeerConnection(peer).send.sendMessage("test");
           // If we have the file, send some data to the peer we selected
+          Log.logNum(1);
           fileManagerSemaphor.acquire();
           byte[] onePiece = myFileManager.readData(piece, 1); // The one piece is real
           fileManagerSemaphor.release();
+          Log.logNum(2);
           String msgPayload = new String(onePiece);
           String indexBinary = Integer.toString(piece);
           for (int i = indexBinary.length(); i < 4; ++i) {
@@ -725,7 +733,8 @@ public class peerProcess {
           }
           msgPayload = indexBinary + msgPayload;
           message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-          send.sendMessage(pieceMsg);
+          Log.logNum(3);
+          send.write(pieceMsg);
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -733,28 +742,42 @@ public class peerProcess {
 
       public synchronized void requestPieceFromPeer() {
         try {
+          requestPieceSemaphore.acquire();
+          Log.beginRequest(peerId);
+          /*
+          System.out.println("Outstanding PieceRequests: " + outstandingPieceRequests);
+          Log.logString(outstandingPieceRequests.toString());
           if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
+            Log.logNum(outstandingPieceRequests.size());
+            Log.logString(outstandingPieceRequests.toString());
+            Log.logNum(myBitfield.getBitfield().size());
+            Log.logNum(myBitfield.getOwnedPieces());
             return;
           }
+
+           */
+
           //if there are current as many outstanding request as there are missing pieces, there's nothing to request
           Random rand = new Random();
 
-          requestPieceSemaphore.acquire();
           boolean lookingForPiece = true;
           int piece = -1;
           while(lookingForPiece){
+            Log.logString("ohhhhhh");
             piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
-            if(!outstandingPieceRequests.contains(piece)){
-               lookingForPiece = false;
-               outstandingPieceRequests.add(piece);
-            }
+            lookingForPiece = false;
+            outstandingPieceRequests.add(piece);
             //if the index we generated isn't current being request, add it to outgoing requests and request it
           }
           requestPieceSemaphore.release();
           //make sure the piece we're requesting isn't already in flight
 
+          Log.sendingRequest(piece, peerId);
+
+          hasOutstandingRequest = true;
+          System.out.println("Requesting Piece: " + piece);
           message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
-          send.sendMessage(pieceRequest);
+          send.write(pieceRequest);
         } catch (Exception e) {
           e.printStackTrace();
         }
@@ -772,7 +795,7 @@ public class peerProcess {
                 try{
                   msgType = piece.charAt(4) - '0';
                 } catch(StringIndexOutOfBoundsException e){
-                  System.err.print(" ");
+                  //System.err.print("Message was too short: " + piece + ".\n");
                 }
 
                 switch (msgType) {
@@ -781,7 +804,9 @@ public class peerProcess {
                         choked = true;
                         break;
                     case 1:
-                        if (choked) {
+                        //System.out.println("hasOutstandingRequest: " + hasOutstandingRequest);
+                        //System.out.println("Choked: " + choked);
+                        if (!hasOutstandingRequest) {
                           //If we were choked, then it's time to start sending request messages again
                           requestPieceFromPeer();
                         }
@@ -810,15 +835,17 @@ public class peerProcess {
                         Log.receiveHaveMessage(peerId, haveIndex);
                         boolean interestingPiece = !myBitfield.hasPiece(haveIndex); //if we don't have it, it's interesting
                         peerBitfield.addPiece(haveIndex);
+                        desiredPiecesSemaphor.acquire();
                         iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield()); //Testing recalc
+                        desiredPiecesSemaphor.release();
                         if(interestingPiece){
                           iDesiredPieces.add(haveIndex);
                           }
                         if(iDesiredPieces.size() != 0) {
-                          send.sendMessage(new message(5, message.MessageType.interested, ""));
+                          send.write(new message(5, message.MessageType.interested, ""));
                         }
                         else{
-                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                          send.write(new message(5, message.MessageType.notInterested, ""));
                         }
                         break;
                     case 5:
@@ -827,7 +854,9 @@ public class peerProcess {
                     case 6:
                         //System.out.println("Received request");
                         //Process request
+
                         String requestPieceString = piece.substring(5);
+                        Log.receivedRequest(requestPieceString, peerId);
                         sendPieceToPeer(Integer.parseInt(requestPieceString));
                         break;
                     case 7:
@@ -843,11 +872,16 @@ public class peerProcess {
                         fileManagerSemaphor.release();
 
                         //Recalc iDesired pieces in case we have gotten desired pieces from other connections
+                        desiredPiecesSemaphor.acquire();
                         iDesiredPieces = myBitfield.getMissingBits(peerBitfield.getBitfield());
+                        desiredPiecesSemaphor.release();
                         if (iDesiredPieces.size() == 0) {
-                          send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                          send.write(new message(5, message.MessageType.notInterested, ""));
                         }
+                        System.out.println("Removing piece " + pieceIndex);
+                        requestPieceSemaphore.acquire();
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
+                        requestPieceSemaphore.release();
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
                         piecesDownloadedThisPeriod += 1;
 
@@ -855,7 +889,7 @@ public class peerProcess {
 
                         for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                           peerConnection peer = entry.getValue();
-                          peer.send.sendMessage(haveMessage);
+                          peer.send.write(haveMessage);
                         }
 
                         if (myBitfield.hasFile()) {
@@ -865,7 +899,7 @@ public class peerProcess {
                             Log.completeDownload();
                             System.out.println("Finished Reading File");
                             fileManagerSemaphor.release();
-                            send.sendMessage(new message(5, message.MessageType.notInterested, ""));
+                            send.write(new message(5, message.MessageType.notInterested, ""));
                         }
                         else if (iDesiredPieces.size() > 0 && !choked) {
                           requestPieceFromPeer();
@@ -890,9 +924,9 @@ public class peerProcess {
               if(shutdown){ 
                 for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                   peerConnection peer = entry.getValue();
-                  peer.send.sendMessage(new message(5, message.MessageType.shutdown, ""));
+                  peer.send.write(new message(5, message.MessageType.shutdown, ""));
                 }
-                System.exit(0); 
+                System.exit(0);
               }
             }
           }
@@ -1074,7 +1108,7 @@ public class peerProcess {
       }
       msgPayload = indexBinary + msgPayload;
       message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-      getPeerConnection(peer).send.sendMessage(pieceMsg);
+      getPeerConnection(peer).send.write(pieceMsg);
     } catch (Exception e) {
       e.printStackTrace();
     }
@@ -1083,7 +1117,7 @@ public class peerProcess {
   public void requestPieceFromPeer(peerConnection pC, int piece) {
     try {
       message pieceRequest = new message(32, message.MessageType.request, Integer.toString(piece));
-      pC.send.sendMessage(pieceRequest);
+      pC.send.write(pieceRequest);
     } catch (Exception e) {
       e.printStackTrace();
     }

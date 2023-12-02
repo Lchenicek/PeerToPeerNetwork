@@ -24,7 +24,7 @@ public class message {
     int messageLength;
     MessageType messageType;
     String messagePayload; //I'm not sure how the message payload is supposed to be stored/transmitted (I'm assuming for now it's an int)
-    String msg;
+    String msg = "Empty message";
     byte[] msgBytes; // Stores complete message as byte array.
 
     public message(int messageLength, MessageType messageType, String messagePayload) {
@@ -47,6 +47,7 @@ public class message {
         }
     }
 
+    /*
     public message(int payloadLength, MessageType messageType, byte[] messagePayload) {
       byte[] messageLengthBytes = new byte[4]; // Stores message length as byte array.
       int messageLength = payloadLength + 1; // +1 for "message type" byte.
@@ -61,6 +62,7 @@ public class message {
       msgBytes[messageLengthBytes.length] = (byte) messageType.value;
       System.arraycopy(messagePayload, 0, msgBytes, messageLengthBytes.length + 1, messagePayload.length);
     }
+    */
 
     public message(int messageLength, MessageType messageType) {
         this.messageLength = messageLength;
