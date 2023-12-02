@@ -116,18 +116,6 @@ public class logger {
         writeEntry(logEntry);
     }
 
-    public void sendingNullMessage(int peer) {
-        //FIXME: delete this, only for testing
-        String logEntry = startEntry() + "is attempting to send a null message to peer " + peer + ".\n";
-        writeEntry(logEntry);
-    }
-
-    public void sendingMessage(String msg, int peer) {
-        //FIXME: delete this, only for testing
-        String logEntry = startEntry() + "is sending message: " + msg + " to peer " + peer + ".\n";
-        writeEntry(logEntry);
-    }
-
     public void choked(int peer) {
         String logEntry = startEntry() + "is choked by " + Integer.toString(peer) + ".\n";
         writeEntry(logEntry);
@@ -135,6 +123,11 @@ public class logger {
 
     public void unchoked(int peer) {
         String logEntry = startEntry() + "is unchoked by " + Integer.toString(peer) + ".\n";
+        writeEntry(logEntry);
+    }
+
+    public void logNum(int num) {
+        String logEntry = startEntry() + "says: " + num + ".\n";
         writeEntry(logEntry);
     }
 
