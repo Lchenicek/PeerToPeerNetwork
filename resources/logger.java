@@ -98,24 +98,6 @@ public class logger {
         }
     }
 
-    public void receivedRequest(String piece, int peer) {
-        //FIXME: delete this, only for testing
-        String logEntry = startEntry() + "has received a request for piece " + piece + " from peer " + peer + ".\n";
-        writeEntry(logEntry);
-    }
-
-    public void beginRequest(int peer) {
-        //FIXME: delete this, only for testing
-        String logEntry = startEntry() + "is requesting from peer " + peer + ".\n";
-        writeEntry(logEntry);
-    }
-
-    public void sendingRequest(int piece, int peer) {
-        //FIXME: delete this, only for testing
-        String logEntry = startEntry() + "is requesting piece " + piece + " from peer " + peer + ".\n";
-        writeEntry(logEntry);
-    }
-
     public void choked(int peer) {
         String logEntry = startEntry() + "is choked by " + Integer.toString(peer) + ".\n";
         writeEntry(logEntry);
@@ -123,16 +105,6 @@ public class logger {
 
     public void unchoked(int peer) {
         String logEntry = startEntry() + "is unchoked by " + Integer.toString(peer) + ".\n";
-        writeEntry(logEntry);
-    }
-
-    public void logNum(int num) { //DELETE
-        String logEntry = startEntry() + "says: " + num + ".\n";
-        writeEntry(logEntry);
-    }
-
-    public void logString(String str) { //DELETE
-        String logEntry = startEntry() + "says: " + str + ".\n";
         writeEntry(logEntry);
     }
 
