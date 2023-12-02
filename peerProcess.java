@@ -895,11 +895,6 @@ public class peerProcess {
 
                         if (myBitfield.hasFile()) {
                             //On the last iteration
-                            fileManagerSemaphor.acquire();
-                            myFileManager.writeToFile();
-                            Log.completeDownload();
-                            System.out.println("Finished Reading File");
-                            fileManagerSemaphor.release();
                             send.write(new message(5, message.MessageType.notInterested, ""));
                         }
                         else if (iDesiredPieces.size() > 0 && !choked) {
@@ -907,6 +902,11 @@ public class peerProcess {
                         }
                         break;
                     case 9:
+                        fileManagerSemaphor.acquire();
+                        myFileManager.writeToFile();
+                        Log.completeDownload();
+                        System.out.println("Finished Reading File");
+                        fileManagerSemaphor.release();
                         System.exit(0);
                     default:
                         break;
@@ -927,6 +927,15 @@ public class peerProcess {
                   peerConnection peer = entry.getValue();
                   peer.send.write(new message(5, message.MessageType.shutdown, ""));
                 }
+                try {
+                  fileManagerSemaphor.acquire();
+                  myFileManager.writeToFile();
+                  Log.completeDownload();
+                  System.out.println("Finished Reading File");
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                fileManagerSemaphor.release();
                 System.exit(0);
               }
             }
