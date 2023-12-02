@@ -744,6 +744,7 @@ public class peerProcess {
         try {
           requestPieceSemaphore.acquire();
           Log.beginRequest(peerId);
+          /*
           System.out.println("Outstanding PieceRequests: " + outstandingPieceRequests);
           Log.logString(outstandingPieceRequests.toString());
           if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
@@ -754,6 +755,8 @@ public class peerProcess {
             return;
           }
 
+           */
+
           //if there are current as many outstanding request as there are missing pieces, there's nothing to request
           Random rand = new Random();
 
@@ -762,10 +765,8 @@ public class peerProcess {
           while(lookingForPiece){
             Log.logString("ohhhhhh");
             piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
-            if(!outstandingPieceRequests.contains(piece)){
-               lookingForPiece = false;
-               outstandingPieceRequests.add(piece);
-            }
+            lookingForPiece = false;
+            outstandingPieceRequests.add(piece);
             //if the index we generated isn't current being request, add it to outgoing requests and request it
           }
           requestPieceSemaphore.release();
