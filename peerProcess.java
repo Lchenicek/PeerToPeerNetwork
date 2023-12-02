@@ -875,9 +875,9 @@ public class peerProcess {
                 e.printStackTrace();
             }
 
-            if(myBitfield.hasFile() && controlShutdown){
+            //Peers has data for all peers, peerConnections has active ones, so adding the third condition prevents it from shutting down early
+            if(myBitfield.hasFile() && controlShutdown && peerConnections.size() == peers.size()){
               boolean shutdown = true;
-              System.out.println("Num of peers: " + peerConnections.size());
                 for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                   peerConnection peer = entry.getValue();
                   bitfield otherBitfield = peer.peerBitfield;
