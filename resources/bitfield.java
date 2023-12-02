@@ -47,7 +47,19 @@ public class bitfield {
         return pieces;
     }
 
-    public void addPiece(int index) {
+    public void addPiece(int index, int id, logger Log) {
+        if(!pieces.get(index)){
+            pieces.set(index, true);
+            ownedPieces++;
+            Log.downloadPiece(id, index, ownedPieces);
+        }
+        //if the piece isn't in the bitfield, add it
+        //little overhead to avoid issues with dupes
+    }
+    //alternate add piece that also logs that we've downloaded a piece
+    //logging immediately after we increment the piece count ensures nothing else can modify it
+
+        public void addPiece(int index) {
         if(!pieces.get(index)){
             pieces.set(index, true);
             ownedPieces++;
