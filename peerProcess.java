@@ -42,6 +42,8 @@ public class peerProcess {
   ArrayList<Integer> toBeNeighbors = new ArrayList<>();
   int previousOptimalPeerId = -1;
 
+  public recalcDownloadThread recalcDownload = new recalcDownloadThread();
+
   boolean controlShutdown = false;
 
   private class peerInfo {
@@ -54,6 +56,30 @@ public class peerProcess {
       hostname = _hostname;
       port = Integer.parseInt(_port);
     }
+  }
+
+  public class recalcDownloadThread extends Thread {
+
+    public void run() {
+
+      recalculateDownloaders();
+      recalculateOptimisticDownloader();
+
+      long lastRecalc = System.currentTimeMillis();
+      long lastOptimisticRecalc = System.currentTimeMillis();
+
+      while (true) {
+        if (System.currentTimeMillis() - lastRecalc > unchokingInterval * 1000L) {
+          recalculateDownloaders();
+          lastRecalc = System.currentTimeMillis();
+        }
+        if (System.currentTimeMillis() - lastOptimisticRecalc > optimisticUnchokingInterval * 1000L) {
+          recalculateOptimisticDownloader();
+          lastOptimisticRecalc = System.currentTimeMillis();
+        }
+      }
+    }
+
   }
 
   // simple little container for storing info until we make the connection.
@@ -629,61 +655,7 @@ public class peerProcess {
       // just focused on getting it all working
       // I'm pretty sure it's all duplicate
 
-      public void run() { // gets called when we do .start() on the thread
-        // Don't send bitfield if the process owner doesn't have the file.
-        /*
-         * if (hasFile) {
-         * SendBitfield();
-         * }
-         * 
-         * ReadPeerBitfield();
-         * 
-         * // If peer is interested, send "interested" message
-         * // Otherwise, send "not interested" message
-         * if (PeerIsInterested()) {
-         * SendInterestedMessage();
-         * } else {
-         * SendNotInterestedMessage();
-         * }
-         * 
-         * try {
-         * // Read message length from peer.
-         * byte[] msgLengthBytes = ReadBytesFromInputStream(in, 4);
-         * 
-         * // Convert message length bytes to integer.
-         * int msgLength = ByteBuffer.wrap(msgLengthBytes).getInt();
-         * 
-         * // Read message type bytes.
-         * byte[] msgTypeBytes = ReadBytesFromInputStream(in, 1);
-         * 
-         * // Extract message type from "message type" byte.
-         * message.MessageType msgType = message.ExtractMessageType(msgTypeBytes);
-         * 
-         * switch (msgType) {
-         * case choke:
-         * break;
-         * case unchoke:
-         * break;
-         * case interested:
-         * break;
-         * case notInterested:
-         * break;
-         * case have:
-         * break;
-         * case bitfield:
-         * break;
-         * case request:
-         * break;
-         * case piece:
-         * break;
-         * default:
-         * break;
-         * }
-         * 
-         * } catch (Exception e) {
-         * System.err.println(e.getMessage());
-         * }
-         */
+      public void run() {
         while (true) {
         }
       }
@@ -725,8 +697,12 @@ public class peerProcess {
           // If we have the file, send some data to the peer we selected
           fileManagerSemaphor.acquire();
           byte[] onePiece = myFileManager.readData(piece, 1); // The one piece is real
+          System.out.println("Piece " + piece + " has this many bytes of data: " + onePiece.length);
           fileManagerSemaphor.release();
-          String msgPayload = new String(onePiece);
+          String msgPayload = new String(onePiece, StandardCharsets.ISO_8859_1);
+
+          //FIXME: delete this print
+
           String indexBinary = Integer.toString(piece);
           for (int i = indexBinary.length(); i < 4; ++i) {
             indexBinary = "0" + indexBinary;
@@ -855,6 +831,7 @@ public class peerProcess {
                         //Process request
 
                         String requestPieceString = piece.substring(5);
+                        System.out.println("sending piece: " + requestPieceString);
                         sendPieceToPeer(Integer.parseInt(requestPieceString));
                         break;
                     case 7:
@@ -865,7 +842,7 @@ public class peerProcess {
                         String msgPayload = piece.substring(9);
 
                         fileManagerSemaphor.acquire();
-                        myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
+                        myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.ISO_8859_1));
                         myBitfield.addPiece(pieceIndex, peerId, Log);
                         fileManagerSemaphor.release();
 
@@ -912,7 +889,8 @@ public class peerProcess {
                 e.printStackTrace();
             }
 
-            if(myBitfield.hasFile() && controlShutdown){
+            //Peers has data for all peers, peerConnections has active ones, so adding the third condition prevents it from shutting down early
+            if(myBitfield.hasFile() && controlShutdown && peerConnections.size() == peers.size()){
               boolean shutdown = true;
                 for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                   peerConnection peer = entry.getValue();
@@ -1043,6 +1021,7 @@ public class peerProcess {
       System.exit(-1);
     }
     if (earlierPeers == 0) controlShutdown = true;
+    recalcDownload.start();
     peerConnections = new HashMap<Integer, peerConnection>();
 
     for (int i = 0; i < earlierPeers; i++) {
@@ -1217,8 +1196,12 @@ public class peerProcess {
       for (Integer id : toBeNeighbors) {
         peerConnection currConnection = getPeerConnection(id);
         message choke = new message(0, message.MessageType.unchoke);
-        currConnection.send.write(choke);
-        currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
+        if (currConnection != null) {
+          //Don't choke a peer that hasn't been initialized
+          //Don't need to worry about peers that haven't been initialized since they can't be interested
+          currConnection.send.write(choke);
+          currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
+        }
       }
       Log.recaclculatingDownloadSpeeds(toBeNeighbors);
 
@@ -1309,17 +1292,7 @@ public class peerProcess {
     */
 
     // Should go right before loop
-    long lastRecalc = System.currentTimeMillis();
-    long lastOptimisticRecalc = System.currentTimeMillis();
     while (true) {
-      if (System.currentTimeMillis() - lastRecalc > Peer.unchokingInterval * 1000L) {
-        Peer.recalculateDownloaders();
-        lastRecalc = System.currentTimeMillis();
-      }
-      if (System.currentTimeMillis() - lastOptimisticRecalc > Peer.optimisticUnchokingInterval * 1000L) {
-        Peer.recalculateOptimisticDownloader();
-        lastOptimisticRecalc = System.currentTimeMillis();
-      }
 
       // Peer who has file
       /*

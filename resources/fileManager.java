@@ -69,6 +69,8 @@ public class fileManager {
     public void writeData(int pieceIndex, byte[] bytesToRead) {
         //We multiply by pieceSize because we will only read/write by piece
         int indexOffset = pieceIndex * pieceSize;
+        System.out.println(pieceIndex);
+        System.out.println(bytesToRead.length);
         for (int i = 0; i < bytesToRead.length; ++i) {
             bytes[i + indexOffset] = bytesToRead[i];
         }
@@ -88,11 +90,13 @@ public class fileManager {
     }
 
     public static void main(String[] args){
-        fileManager readFromFile = new fileManager("1001", "thefile", 2167705, 16384, true);
-        fileManager writeToFile = new fileManager("1002", "thefile", 2167705, 16384, false);
-        int pieceCount = (int) Math.ceil((double) 2167705/(double) 16384);
+        fileManager readFromFile = new fileManager("1001", "tree.jpg", 24301474, 16384, true);
+        fileManager writeToFile = new fileManager("1002", "tree.jpg", 24301474, 16384, false);
+        int pieceCount = (int) Math.ceil((double) 24301474/(double) 16384);
         for (int i = 0; i < pieceCount; ++i) {
             byte[] temp = readFromFile.readData(i, 1);
+            String tmp = new String(temp, StandardCharsets.ISO_8859_1);
+            temp = tmp.getBytes(StandardCharsets.ISO_8859_1);
             writeToFile.writeData(i, temp);
         }
         writeToFile.writeToFile();
