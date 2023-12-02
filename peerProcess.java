@@ -59,6 +59,8 @@ public class peerProcess {
   // could be bad java but i'm bootlegging a struct
   private class peerConnection {
 
+    Semaphore writeSemaphore = new Semaphore(1);
+
     public peerConnectionSend send;
     public peerConnectionReceive recv;
 
@@ -327,8 +329,10 @@ public class peerProcess {
 
       public void write(message m) {
         try {
+          writeSemaphore.acquire();
           out.writeObject(m.getMessage());
           out.flush();
+          writeSemaphore.release();
         } catch (Exception e) {
           System.err.println(e);
         }
