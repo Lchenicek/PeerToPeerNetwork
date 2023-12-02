@@ -170,6 +170,9 @@ public class peerProcess {
         send.start();
         recv.start();
 
+        recalculateDownloaders();
+        recalculateOptimisticDownloader();
+
       } catch (Exception e) {
         e.printStackTrace();;
       }
@@ -630,62 +633,20 @@ public class peerProcess {
       // just focused on getting it all working
       // I'm pretty sure it's all duplicate
 
-      public void run() { // gets called when we do .start() on the thread
-        // Don't send bitfield if the process owner doesn't have the file.
-        /*
-         * if (hasFile) {
-         * SendBitfield();
-         * }
-         * 
-         * ReadPeerBitfield();
-         * 
-         * // If peer is interested, send "interested" message
-         * // Otherwise, send "not interested" message
-         * if (PeerIsInterested()) {
-         * SendInterestedMessage();
-         * } else {
-         * SendNotInterestedMessage();
-         * }
-         * 
-         * try {
-         * // Read message length from peer.
-         * byte[] msgLengthBytes = ReadBytesFromInputStream(in, 4);
-         * 
-         * // Convert message length bytes to integer.
-         * int msgLength = ByteBuffer.wrap(msgLengthBytes).getInt();
-         * 
-         * // Read message type bytes.
-         * byte[] msgTypeBytes = ReadBytesFromInputStream(in, 1);
-         * 
-         * // Extract message type from "message type" byte.
-         * message.MessageType msgType = message.ExtractMessageType(msgTypeBytes);
-         * 
-         * switch (msgType) {
-         * case choke:
-         * break;
-         * case unchoke:
-         * break;
-         * case interested:
-         * break;
-         * case notInterested:
-         * break;
-         * case have:
-         * break;
-         * case bitfield:
-         * break;
-         * case request:
-         * break;
-         * case piece:
-         * break;
-         * default:
-         * break;
-         * }
-         * 
-         * } catch (Exception e) {
-         * System.err.println(e.getMessage());
-         * }
-         */
+      public void run() {
+
+        long lastRecalc = System.currentTimeMillis();
+        long lastOptimisticRecalc = System.currentTimeMillis();
+
         while (true) {
+          if (System.currentTimeMillis() - lastRecalc > unchokingInterval * 1000L) {
+            recalculateDownloaders();
+            lastRecalc = System.currentTimeMillis();
+          }
+          if (System.currentTimeMillis() - lastOptimisticRecalc > optimisticUnchokingInterval * 1000L) {
+            recalculateOptimisticDownloader();
+            lastOptimisticRecalc = System.currentTimeMillis();
+          }
         }
       }
       // doesn't do anything right now, but without this here the process just dies as
@@ -916,6 +877,7 @@ public class peerProcess {
 
             if(myBitfield.hasFile() && controlShutdown){
               boolean shutdown = true;
+              System.out.println("Num of peers: " + peerConnections.size());
                 for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
                   peerConnection peer = entry.getValue();
                   bitfield otherBitfield = peer.peerBitfield;
@@ -1219,8 +1181,12 @@ public class peerProcess {
       for (Integer id : toBeNeighbors) {
         peerConnection currConnection = getPeerConnection(id);
         message choke = new message(0, message.MessageType.unchoke);
-        currConnection.send.write(choke);
-        currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
+        if (currConnection != null) {
+          //Don't choke a peer that hasn't been initialized
+          //Don't need to worry about peers that haven't been initialized since they can't be interested
+          currConnection.send.write(choke);
+          currConnection.piecesDownloadedThisPeriod = 0; //Resetting this value
+        }
       }
       Log.recaclculatingDownloadSpeeds(toBeNeighbors);
 
@@ -1311,17 +1277,7 @@ public class peerProcess {
     */
 
     // Should go right before loop
-    long lastRecalc = System.currentTimeMillis();
-    long lastOptimisticRecalc = System.currentTimeMillis();
     while (true) {
-      if (System.currentTimeMillis() - lastRecalc > Peer.unchokingInterval * 1000L) {
-        Peer.recalculateDownloaders();
-        lastRecalc = System.currentTimeMillis();
-      }
-      if (System.currentTimeMillis() - lastOptimisticRecalc > Peer.optimisticUnchokingInterval * 1000L) {
-        Peer.recalculateOptimisticDownloader();
-        lastOptimisticRecalc = System.currentTimeMillis();
-      }
 
       // Peer who has file
       /*
