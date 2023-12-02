@@ -60,6 +60,7 @@ public class peerProcess {
   private class peerConnection {
 
     Semaphore writeSemaphore = new Semaphore(1);
+    Semaphore readSemaphore = new Semaphore(1);
 
     public peerConnectionSend send;
     public peerConnectionReceive recv;
@@ -705,7 +706,9 @@ public class peerProcess {
       public String read() {
         String shouldBeString = "";
         try {
+          readSemaphore.acquire();
           shouldBeString = (String) in.readObject();
+          readSemaphore.release();
           return (String) shouldBeString;
         } catch (Exception e) {
           //System.err.println("Error reading! " + e + " where we received a " + shouldBeString.getClass() + " and says: " + shouldBeString + ".\n");
@@ -742,7 +745,12 @@ public class peerProcess {
           requestPieceSemaphore.acquire();
           Log.beginRequest(peerId);
           System.out.println("Outstanding PieceRequests: " + outstandingPieceRequests);
+          Log.logString(outstandingPieceRequests.toString());
           if(outstandingPieceRequests.size() >= (myBitfield.getBitfield().size() - myBitfield.getOwnedPieces())){
+            Log.logNum(outstandingPieceRequests.size());
+            Log.logString(outstandingPieceRequests.toString());
+            Log.logNum(myBitfield.getBitfield().size());
+            Log.logNum(myBitfield.getOwnedPieces());
             return;
           }
 
@@ -752,6 +760,7 @@ public class peerProcess {
           boolean lookingForPiece = true;
           int piece = -1;
           while(lookingForPiece){
+            Log.logString("ohhhhhh");
             piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
             if(!outstandingPieceRequests.contains(piece)){
                lookingForPiece = false;
@@ -1115,7 +1124,7 @@ public class peerProcess {
 
   public void recalculateDownloaders() {
     Random rand = new Random();
-    //System.out.println("mybitfield: " + myBitfield.getBitfield());
+    System.out.println("mybitfield: " + myBitfield.getBitfield());
     try {
       semPeersInterested.acquire();
       System.out.println("Interested peers: " + peersInterested);

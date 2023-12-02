@@ -126,8 +126,13 @@ public class logger {
         writeEntry(logEntry);
     }
 
-    public void logNum(int num) {
+    public void logNum(int num) { //DELETE
         String logEntry = startEntry() + "says: " + num + ".\n";
+        writeEntry(logEntry);
+    }
+
+    public void logString(String str) { //DELETE
+        String logEntry = startEntry() + "says: " + str + ".\n";
         writeEntry(logEntry);
     }
 
