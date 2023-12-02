@@ -698,8 +698,12 @@ public class peerProcess {
           // If we have the file, send some data to the peer we selected
           fileManagerSemaphor.acquire();
           byte[] onePiece = myFileManager.readData(piece, 1); // The one piece is real
+          System.out.println("Piece " + piece + " has this many bytes of data: " + onePiece.length);
           fileManagerSemaphor.release();
-          String msgPayload = new String(onePiece);
+          String msgPayload = new String(onePiece, StandardCharsets.ISO_8859_1);
+
+          //FIXME: delete this print
+
           String indexBinary = Integer.toString(piece);
           for (int i = indexBinary.length(); i < 4; ++i) {
             indexBinary = "0" + indexBinary;
@@ -828,6 +832,7 @@ public class peerProcess {
                         //Process request
 
                         String requestPieceString = piece.substring(5);
+                        System.out.println("sending piece: " + requestPieceString);
                         sendPieceToPeer(Integer.parseInt(requestPieceString));
                         break;
                     case 7:
@@ -838,7 +843,7 @@ public class peerProcess {
                         String msgPayload = piece.substring(9);
 
                         fileManagerSemaphor.acquire();
-                        myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
+                        myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.ISO_8859_1));
                         myBitfield.addPiece(pieceIndex);
                         fileManagerSemaphor.release();
 
