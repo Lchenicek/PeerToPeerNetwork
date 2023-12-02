@@ -43,6 +43,8 @@ public class peerProcess {
   ArrayList<Integer> toBeNeighbors = new ArrayList<>();
   int previousOptimalPeerId = -1;
 
+  public recalcDownloadThread recalcDownload = new recalcDownloadThread();
+
   boolean controlShutdown = false;
 
   private class peerInfo {
@@ -55,6 +57,30 @@ public class peerProcess {
       hostname = _hostname;
       port = Integer.parseInt(_port);
     }
+  }
+
+  public class recalcDownloadThread extends Thread {
+
+    public void run() {
+
+      recalculateDownloaders();
+      recalculateOptimisticDownloader();
+
+      long lastRecalc = System.currentTimeMillis();
+      long lastOptimisticRecalc = System.currentTimeMillis();
+
+      while (true) {
+        if (System.currentTimeMillis() - lastRecalc > unchokingInterval * 1000L) {
+          recalculateDownloaders();
+          lastRecalc = System.currentTimeMillis();
+        }
+        if (System.currentTimeMillis() - lastOptimisticRecalc > optimisticUnchokingInterval * 1000L) {
+          recalculateOptimisticDownloader();
+          lastOptimisticRecalc = System.currentTimeMillis();
+        }
+      }
+    }
+
   }
 
   // simple little container for storing info until we make the connection.
@@ -169,9 +195,6 @@ public class peerProcess {
 
         send.start();
         recv.start();
-
-        recalculateDownloaders();
-        recalculateOptimisticDownloader();
 
       } catch (Exception e) {
         e.printStackTrace();;
@@ -634,19 +657,7 @@ public class peerProcess {
       // I'm pretty sure it's all duplicate
 
       public void run() {
-
-        long lastRecalc = System.currentTimeMillis();
-        long lastOptimisticRecalc = System.currentTimeMillis();
-
         while (true) {
-          if (System.currentTimeMillis() - lastRecalc > unchokingInterval * 1000L) {
-            recalculateDownloaders();
-            lastRecalc = System.currentTimeMillis();
-          }
-          if (System.currentTimeMillis() - lastOptimisticRecalc > optimisticUnchokingInterval * 1000L) {
-            recalculateOptimisticDownloader();
-            lastOptimisticRecalc = System.currentTimeMillis();
-          }
         }
       }
       // doesn't do anything right now, but without this here the process just dies as
@@ -1007,6 +1018,7 @@ public class peerProcess {
       System.exit(-1);
     }
     if (earlierPeers == 0) controlShutdown = true;
+    recalcDownload.start();
     peerConnections = new HashMap<Integer, peerConnection>();
 
     for (int i = 0; i < earlierPeers; i++) {
