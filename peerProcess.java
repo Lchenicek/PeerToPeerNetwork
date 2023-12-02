@@ -59,6 +59,8 @@ public class peerProcess {
   // could be bad java but i'm bootlegging a struct
   private class peerConnection {
 
+    Semaphore writeSemaphore = new Semaphore(1);
+
     public peerConnectionSend send;
     public peerConnectionReceive recv;
 
@@ -131,10 +133,11 @@ public class peerProcess {
       }
     }
 
-    public peerConnection(Socket _connection, int _id) { // constructor for this peer got connection from another peer.
+    public peerConnection(int _port, int _id) { // constructor for this peer got connection from another peer.
                                                          // we got the socket from the listener
       try {
-        connection = _connection; // get socket from listener
+        ServerSocket listener = new ServerSocket(_port);
+        connection = listener.accept(); // get socket from listener
         peerId = _id;
         Log.receiveConnection(peerId);
         send = new peerConnectionSend(connection);
@@ -160,6 +163,7 @@ public class peerProcess {
         // Receive & process interest response.
         String interestResponse = recv.read();
         ProcessInterestResponse(Character.toString(interestResponse.charAt(4)));
+        listener.close(); // don't need any more server connections
 
         send.start();
         recv.start();
@@ -327,8 +331,10 @@ public class peerProcess {
 
       public void write(message m) {
         try {
+          writeSemaphore.acquire();
           out.writeObject(m.getMessage());
           out.flush();
+          writeSemaphore.release();
         } catch (Exception e) {
           System.err.println(e);
         }
@@ -706,6 +712,7 @@ public class peerProcess {
         } catch (Exception e) {
           //System.err.println("Error reading! " + e + " where we received a " + shouldBeString.getClass() + " and says: " + shouldBeString + ".\n");
           //System.exit(-1);
+          //Log.logNum(111);
           return ""; // need a return type always
         }
       }
@@ -1030,29 +1037,22 @@ public class peerProcess {
       peerConnections.put(peers.elementAt(i).id, peerConn);
     }
 
-    try {
-      ServerSocket listener = new ServerSocket(port);
-      for (int i = 0; i < peers.size() - earlierPeers; i++) { // we're awaiting connections from total peers - earlier
-                                                              // peers others
-        peerConnection peerConn = new peerConnection(listener.accept(), peers.elementAt(i + earlierPeers).id); // this
-                                                                                                               // assumes
-                                                                                                               // peers
-                                                                                                               // connect
-                                                                                                               // in
-                                                                                                               // order,
-                                                                                                               // they
-                                                                                                               // might
-                                                                                                               // not.
-                                                                                                               // fix?
-        peerConnections.put(peers.elementAt(i + earlierPeers).id, peerConn);
-      }
-      listener.close(); // don't need any more server connections
+    for (int i = 0; i < peers.size() - earlierPeers; i++) { // we're awaiting connections from total peers - earlier
+                                                            // peers others
+      peerConnection peerConn = new peerConnection(port, peers.elementAt(i + earlierPeers).id); // this
+                                                                                                             // assumes
+                                                                                                             // peers
+                                                                                                             // connect
+                                                                                                             // in
+                                                                                                             // order,
+                                                                                                             // they
+                                                                                                             // might
+                                                                                                             // not.
+                                                                                                             // fix?
+      peerConnections.put(peers.elementAt(i + earlierPeers).id, peerConn);
+    }
 
-    } catch (IOException e) {
-      System.err.println("Could not start listener");
-      System.exit(-1);
-    } // it's kind of nice java doesn't let you leave exceptions unhandled but this is
-      // getting annoying
+    // getting annoying
 
   }
 
