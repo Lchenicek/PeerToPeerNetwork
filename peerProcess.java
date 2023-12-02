@@ -40,6 +40,9 @@ public class peerProcess {
   Set<Integer> peersInterested = new HashSet<>(); // Peers interested in our data
   Semaphore semPeersInterested = new Semaphore(1); // Semaphor for above data
 
+  ArrayList<Integer> toBeNeighbors = new ArrayList<>();
+  int previousOptimalPeerId = -1;
+
   boolean controlShutdown = false;
 
   private class peerInfo {
@@ -721,11 +724,9 @@ public class peerProcess {
         try {
           // getPeerConnection(peer).send.sendMessage("test");
           // If we have the file, send some data to the peer we selected
-          Log.logNum(1);
           fileManagerSemaphor.acquire();
           byte[] onePiece = myFileManager.readData(piece, 1); // The one piece is real
           fileManagerSemaphor.release();
-          Log.logNum(2);
           String msgPayload = new String(onePiece);
           String indexBinary = Integer.toString(piece);
           for (int i = indexBinary.length(); i < 4; ++i) {
@@ -733,7 +734,6 @@ public class peerProcess {
           }
           msgPayload = indexBinary + msgPayload;
           message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-          Log.logNum(3);
           send.write(pieceMsg);
         } catch (Exception e) {
           e.printStackTrace();
@@ -742,7 +742,6 @@ public class peerProcess {
 
       public synchronized void requestPieceFromPeer() {
         try {
-          Log.beginRequest(peerId);
           /*
           System.out.println("Outstanding PieceRequests: " + outstandingPieceRequests);
           Log.logString(outstandingPieceRequests.toString());
@@ -754,6 +753,9 @@ public class peerProcess {
             return;
           }
            */
+          if (iDesiredPieces.size() == 0) {
+            return;
+          }
 
           //if there are current as many outstanding request as there are missing pieces, there's nothing to request
           Random rand = new Random();
@@ -761,7 +763,6 @@ public class peerProcess {
           boolean lookingForPiece = true;
           int piece = -1;
           while(lookingForPiece){
-            Log.logString("ohhhhhh");
             piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
             requestPieceSemaphore.acquire();
             if (!outstandingPieceRequests.contains(piece)) {
@@ -772,8 +773,6 @@ public class peerProcess {
             //if the index we generated isn't current being request, add it to outgoing requests and request it
           }
           //make sure the piece we're requesting isn't already in flight
-
-          Log.sendingRequest(piece, peerId);
 
           hasOutstandingRequest = true;
           System.out.println("Requesting Piece: " + piece);
@@ -857,7 +856,6 @@ public class peerProcess {
                         //Process request
 
                         String requestPieceString = piece.substring(5);
-                        Log.receivedRequest(requestPieceString, peerId);
                         sendPieceToPeer(Integer.parseInt(requestPieceString));
                         break;
                     case 7:
@@ -886,6 +884,7 @@ public class peerProcess {
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
                         piecesDownloadedThisPeriod += 1;
 
+                        //POTENTIAL FIXME: do I need to send have after checking if we have file so I can confirm it closes first
                         message haveMessage = new message(9, message.MessageType.have, Integer.toString(pieceIndex));
 
                         for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
@@ -895,11 +894,6 @@ public class peerProcess {
 
                         if (myBitfield.hasFile()) {
                             //On the last iteration
-                            fileManagerSemaphor.acquire();
-                            myFileManager.writeToFile();
-                            Log.completeDownload();
-                            System.out.println("Finished Reading File");
-                            fileManagerSemaphor.release();
                             send.write(new message(5, message.MessageType.notInterested, ""));
                         }
                         else if (iDesiredPieces.size() > 0 && !choked) {
@@ -907,6 +901,11 @@ public class peerProcess {
                         }
                         break;
                     case 9:
+                        fileManagerSemaphor.acquire();
+                        myFileManager.writeToFile();
+                        Log.completeDownload();
+                        System.out.println("Finished Reading File");
+                        fileManagerSemaphor.release();
                         System.exit(0);
                     default:
                         break;
@@ -927,6 +926,15 @@ public class peerProcess {
                   peerConnection peer = entry.getValue();
                   peer.send.write(new message(5, message.MessageType.shutdown, ""));
                 }
+                try {
+                  fileManagerSemaphor.acquire();
+                  myFileManager.writeToFile();
+                  Log.completeDownload();
+                  System.out.println("Finished Reading File");
+                } catch (InterruptedException e) {
+                  e.printStackTrace();
+                }
+                fileManagerSemaphor.release();
                 System.exit(0);
               }
             }
@@ -1130,7 +1138,7 @@ public class peerProcess {
     try {
       semPeersInterested.acquire();
       System.out.println("Interested peers: " + peersInterested);
-      ArrayList<Integer> toBeNeighbors = new ArrayList<>(); //Stores the k unchoked neighbors
+      toBeNeighbors = new ArrayList<>(); //Stores the k unchoked neighbors
 
       //Selecting preferred neightbors
       if (!myBitfield.hasFile()) {
@@ -1224,6 +1232,62 @@ public class peerProcess {
     semPeersInterested.release();
   }
 
+  public void recalculateOptimisticDownloader() {
+    Random rand = new Random();
+    try {
+      semPeersInterested.acquire();
+
+      //Get a list of all non preferred neighbors that are interested in our data
+      ArrayList<Integer> notPicked = new ArrayList<>(peersInterested);
+      for (int peerId : toBeNeighbors) {
+        //removing all selected peers
+        notPicked.remove(Integer.valueOf(peerId));
+      }
+
+      if (notPicked.size() > 0) {
+        //randomly select a peer
+        int selectedPeer = notPicked.get(rand.nextInt(notPicked.size()));
+        System.out.println("Optimistically Unchoked Peer: " + selectedPeer);
+        //We already know selected peer is not a neighbor, but if it wasn't previously the optimistic one, we need to choke the old one (if it isn't a neighbor) and unchoke the current
+        if (selectedPeer != previousOptimalPeerId) {
+          message unchoke = new message(0, message.MessageType.unchoke);
+          getPeerConnection(selectedPeer).send.write(unchoke);
+
+          //Find out if the old optimal is currently one of our neighbors
+          boolean previousOptimalInNeighbors = false;
+          for (int id : toBeNeighbors) {
+            if (id == previousOptimalPeerId) {
+              previousOptimalInNeighbors = true;
+            }
+          }
+
+          //If it is, don't choke it
+          if (!previousOptimalInNeighbors && previousOptimalPeerId != -1) {
+            //So if it's not in neighbors, choke it
+            message choke = new message(0, message.MessageType.choke);
+            getPeerConnection(previousOptimalPeerId).send.write(choke);
+          }
+        }
+      }
+      else {
+        System.out.println("Not enough interested peers");
+        if (previousOptimalPeerId != -1) {
+          //So if it's not in neighbors, choke it
+          message choke = new message(0, message.MessageType.choke);
+          getPeerConnection(previousOptimalPeerId).send.write(choke);
+        }
+        previousOptimalPeerId = -1;
+      }
+
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    semPeersInterested.release();
+    //FIXME: check if optimistic unchoked peer is on preferred peers and correct accordingly
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
       System.err.println("You must specify an id and nothing more");
@@ -1248,10 +1312,15 @@ public class peerProcess {
 
     // Should go right before loop
     long lastRecalc = System.currentTimeMillis();
+    long lastOptimisticRecalc = System.currentTimeMillis();
     while (true) {
       if (System.currentTimeMillis() - lastRecalc > Peer.unchokingInterval * 1000L) {
         Peer.recalculateDownloaders();
         lastRecalc = System.currentTimeMillis();
+      }
+      if (System.currentTimeMillis() - lastOptimisticRecalc > Peer.optimisticUnchokingInterval * 1000L) {
+        Peer.recalculateOptimisticDownloader();
+        lastOptimisticRecalc = System.currentTimeMillis();
       }
 
       // Peer who has file
