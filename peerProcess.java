@@ -39,7 +39,6 @@ public class peerProcess {
   // Semaphors cuz threading
   Set<Integer> peersInterested = new HashSet<>(); // Peers interested in our data
   Semaphore semPeersInterested = new Semaphore(1); // Semaphor for above data
-
   ArrayList<Integer> toBeNeighbors = new ArrayList<>();
   int previousOptimalPeerId = -1;
 
@@ -867,7 +866,7 @@ public class peerProcess {
 
                         fileManagerSemaphor.acquire();
                         myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.UTF_8));
-                        myBitfield.addPiece(pieceIndex);
+                        myBitfield.addPiece(pieceIndex, peerId, Log);
                         fileManagerSemaphor.release();
 
                         //Recalc iDesired pieces in case we have gotten desired pieces from other connections
@@ -881,7 +880,6 @@ public class peerProcess {
                         requestPieceSemaphore.acquire();
                         outstandingPieceRequests.remove(Integer.valueOf(pieceIndex));
                         requestPieceSemaphore.release();
-                        Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
                         piecesDownloadedThisPeriod += 1;
 
                         //POTENTIAL FIXME: do I need to send have after checking if we have file so I can confirm it closes first

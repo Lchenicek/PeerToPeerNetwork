@@ -5,6 +5,7 @@ import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Vector;
+import java.util.concurrent.Semaphore;
 
 public class logger {
     String id;
@@ -123,7 +124,7 @@ public class logger {
             //we could close the file, but we don't want to because it'll be open and logging for a while
         } catch(IOException e){
             System.err.println("Issue logging");
-        }
+        } 
     }
     //this is it's own function because if not I would have to handle the exception every time
     //and like absolutely not holy shit
