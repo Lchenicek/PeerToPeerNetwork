@@ -724,11 +724,9 @@ public class peerProcess {
         try {
           // getPeerConnection(peer).send.sendMessage("test");
           // If we have the file, send some data to the peer we selected
-          Log.logNum(1);
           fileManagerSemaphor.acquire();
           byte[] onePiece = myFileManager.readData(piece, 1); // The one piece is real
           fileManagerSemaphor.release();
-          Log.logNum(2);
           String msgPayload = new String(onePiece);
           String indexBinary = Integer.toString(piece);
           for (int i = indexBinary.length(); i < 4; ++i) {
@@ -736,7 +734,6 @@ public class peerProcess {
           }
           msgPayload = indexBinary + msgPayload;
           message pieceMsg = new message(msgPayload.length(), message.MessageType.piece, msgPayload);
-          Log.logNum(3);
           send.write(pieceMsg);
         } catch (Exception e) {
           e.printStackTrace();
@@ -745,7 +742,6 @@ public class peerProcess {
 
       public synchronized void requestPieceFromPeer() {
         try {
-          Log.beginRequest(peerId);
           /*
           System.out.println("Outstanding PieceRequests: " + outstandingPieceRequests);
           Log.logString(outstandingPieceRequests.toString());
@@ -757,6 +753,9 @@ public class peerProcess {
             return;
           }
            */
+          if (iDesiredPieces.size() == 0) {
+            return;
+          }
 
           //if there are current as many outstanding request as there are missing pieces, there's nothing to request
           Random rand = new Random();
@@ -764,7 +763,6 @@ public class peerProcess {
           boolean lookingForPiece = true;
           int piece = -1;
           while(lookingForPiece){
-            Log.logString("ohhhhhh");
             piece = iDesiredPieces.get(rand.nextInt(iDesiredPieces.size()));
             requestPieceSemaphore.acquire();
             if (!outstandingPieceRequests.contains(piece)) {
@@ -775,8 +773,6 @@ public class peerProcess {
             //if the index we generated isn't current being request, add it to outgoing requests and request it
           }
           //make sure the piece we're requesting isn't already in flight
-
-          Log.sendingRequest(piece, peerId);
 
           hasOutstandingRequest = true;
           System.out.println("Requesting Piece: " + piece);
@@ -860,7 +856,6 @@ public class peerProcess {
                         //Process request
 
                         String requestPieceString = piece.substring(5);
-                        Log.receivedRequest(requestPieceString, peerId);
                         sendPieceToPeer(Integer.parseInt(requestPieceString));
                         break;
                     case 7:
