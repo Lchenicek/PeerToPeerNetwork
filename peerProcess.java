@@ -1072,7 +1072,7 @@ public class peerProcess {
       listener.close(); // don't need any more server connections
 
     } catch (IOException e) {
-      System.err.println("Could not start listener");
+      System.err.println(e.getMessage());
       System.exit(-1);
     } // it's kind of nice java doesn't let you leave exceptions unhandled but this is
       // getting annoying
