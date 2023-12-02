@@ -40,6 +40,9 @@ public class peerProcess {
   Set<Integer> peersInterested = new HashSet<>(); // Peers interested in our data
   Semaphore semPeersInterested = new Semaphore(1); // Semaphor for above data
 
+  ArrayList<Integer> toBeNeighbors = new ArrayList<>();
+  int previousOptimalPeerId = -1;
+
   boolean controlShutdown = false;
 
   private class peerInfo {
@@ -1140,7 +1143,7 @@ public class peerProcess {
     try {
       semPeersInterested.acquire();
       System.out.println("Interested peers: " + peersInterested);
-      ArrayList<Integer> toBeNeighbors = new ArrayList<>(); //Stores the k unchoked neighbors
+      toBeNeighbors = new ArrayList<>(); //Stores the k unchoked neighbors
 
       //Selecting preferred neightbors
       if (!myBitfield.hasFile()) {
@@ -1235,7 +1238,58 @@ public class peerProcess {
   }
 
   public void recalculateOptimisticDownloader() {
-    System.out.println("Optimism");
+    Random rand = new Random();
+    try {
+      semPeersInterested.acquire();
+
+      //Get a list of all non preferred neighbors that are interested in our data
+      ArrayList<Integer> notPicked = new ArrayList<>(peersInterested);
+      for (int peerId : toBeNeighbors) {
+        //removing all selected peers
+        notPicked.remove(Integer.valueOf(peerId));
+      }
+
+      if (notPicked.size() > 0) {
+        //randomly select a peer
+        int selectedPeer = notPicked.get(rand.nextInt(notPicked.size()));
+        System.out.println("Optimistically Unchoked Peer: " + selectedPeer);
+        //We already know selected peer is not a neighbor, but if it wasn't previously the optimistic one, we need to choke the old one (if it isn't a neighbor) and unchoke the current
+        if (selectedPeer != previousOptimalPeerId) {
+          message unchoke = new message(0, message.MessageType.unchoke);
+          getPeerConnection(selectedPeer).send.write(unchoke);
+
+          //Find out if the old optimal is currently one of our neighbors
+          boolean previousOptimalInNeighbors = false;
+          for (int id : toBeNeighbors) {
+            if (id == previousOptimalPeerId) {
+              previousOptimalInNeighbors = true;
+            }
+          }
+
+          //If it is, don't choke it
+          if (!previousOptimalInNeighbors && previousOptimalPeerId != -1) {
+            //So if it's not in neighbors, choke it
+            message choke = new message(0, message.MessageType.choke);
+            getPeerConnection(previousOptimalPeerId).send.write(choke);
+          }
+        }
+      }
+      else {
+        System.out.println("Not enough interested peers");
+        if (previousOptimalPeerId != -1) {
+          //So if it's not in neighbors, choke it
+          message choke = new message(0, message.MessageType.choke);
+          getPeerConnection(previousOptimalPeerId).send.write(choke);
+        }
+        previousOptimalPeerId = -1;
+      }
+
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } catch (Exception e) {
+      e.printStackTrace();
+    }
+    semPeersInterested.release();
     //FIXME: check if optimistic unchoked peer is on preferred peers and correct accordingly
   }
 
