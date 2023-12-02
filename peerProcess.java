@@ -886,6 +886,7 @@ public class peerProcess {
                         Log.downloadPiece(peerId, pieceIndex, myBitfield.getOwnedPieces());
                         piecesDownloadedThisPeriod += 1;
 
+                        //POTENTIAL FIXME: do I need to send have after checking if we have file so I can confirm it closes first
                         message haveMessage = new message(9, message.MessageType.have, Integer.toString(pieceIndex));
 
                         for(HashMap.Entry<Integer, peerConnection> entry : peerConnections.entrySet()){
@@ -1224,6 +1225,11 @@ public class peerProcess {
     semPeersInterested.release();
   }
 
+  public void recalculateOptimisticDownloader() {
+    System.out.println("Optimism");
+    //FIXME: check if optimistic unchoked peer is on preferred peers and correct accordingly
+  }
+
   public static void main(String[] args) throws Exception {
     if (args.length != 1) {
       System.err.println("You must specify an id and nothing more");
@@ -1248,10 +1254,15 @@ public class peerProcess {
 
     // Should go right before loop
     long lastRecalc = System.currentTimeMillis();
+    long lastOptimisticRecalc = System.currentTimeMillis();
     while (true) {
       if (System.currentTimeMillis() - lastRecalc > Peer.unchokingInterval * 1000L) {
         Peer.recalculateDownloaders();
         lastRecalc = System.currentTimeMillis();
+      }
+      if (System.currentTimeMillis() - lastOptimisticRecalc > Peer.optimisticUnchokingInterval * 1000L) {
+        Peer.recalculateOptimisticDownloader();
+        lastOptimisticRecalc = System.currentTimeMillis();
       }
 
       // Peer who has file
