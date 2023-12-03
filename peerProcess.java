@@ -648,7 +648,7 @@ public class peerProcess {
     }
 
     int earlierPeers = 0; // outside of try cause we need it for the for loop later
-    try (BufferedReader readerPeer = new BufferedReader(new FileReader("./aPeerInfo.cfg"))) {
+    try (BufferedReader readerPeer = new BufferedReader(new FileReader("./PeerInfo.cfg"))) {
       String line;
       boolean encounteredSelf = false;
       peers = new Vector<peerInfo>();
