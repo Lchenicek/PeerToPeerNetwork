@@ -840,7 +840,7 @@ public class peerProcess {
                         String pieceIndexString = piece.substring(5, 9);
                         int pieceIndex = Integer.parseInt(pieceIndexString);
                         String msgPayload = piece.substring(9);
-
+                        hasOutstandingRequest = false
                         fileManagerSemaphor.acquire();
                         myFileManager.writeData(pieceIndex, msgPayload.getBytes(StandardCharsets.ISO_8859_1));
                         myBitfield.addPiece(pieceIndex, peerId, Log);
