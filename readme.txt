@@ -1,15 +1,33 @@
 a. Group 36
-b. Logan Chenicek lchenicek@ufl.edu 55753507
-   Zach Webb zwebb@ufl.edu 44138243
-   Beatrice Ndalichako bndalichako@ufl.edu 5231****
+b. 
+
+Logan Chenicek lchenicek@ufl.edu 55753507
+Zach Webb zwebb@ufl.edu 44138243
+Beatrice Ndalichako bndalichako@ufl.edu 5231****
+
 c.
+
 Logan Chenicek - Bitfield class, File Manager, Message Class, Preferred Neighbors, Optimistic Unchoking, Requests, Piece, Choke and Unchoke messages
 Zach Webb - Logger, PeerProcess construction, peerConnection, peerConnection Send/Recieve, Have messages, Threading, Start remote peers
 Beatrice - Send/Recieve handshakes, Send/Recieve bitfield, processing peer's bitfield.
+
 d. https://youtu.be/0Czd4rdmCqk
 e. We achieved all that we wanted with this project. We successfully got each peer to be able to communicate with each other, the request and send pieces when correct, can choke and unchoke neighbors and properly decide preferred and optimisticly unchoked neighbors.
-f. 
+f. Instructions to run:
+
+To unzip on windows, you can just do this by right clicking on the zip and clicking extract. For linux, you should be able to unzip using the command unzip group36.zip
+Ensure the code is running on a CISE machine by uploading the project onto the CISE server. One way of doing this is through sftp. Use sftp [username]@rain.cise.ufl.edu. From here, use lcd [filepath] to navigate to the directory the project is currently located at on your machine. Then run the command: put PeerToPeerNetwork to upload the project
+ssh into the CISE server. We used [username]@rain.cise.ufl.edu. The command would be:
+ssh [username]@rain.cise.ufl.edu
+From here, ssh into one of the specific machines used to run the peers. We did
+ssh lin114-00.cise.ufl.edu
+These steps could be condensed or simplified (you could probably just ssh into one or the other, but this is how we did it for safety)
+Compile our code: javac peerProcess.java
+Compile provided start remote code: javac StartRemotePeers.java
+Run code: java StartRemotePeers 
+
 g. Overview of project:
+
 When a peer is created, all the data from the config file is read into attributes of the class.
 Each peer creates two peer connection threads for each neighbor. When we create the peer, we send handshakes and bitfields so we can determine if we are interested in the peers data and then send an interest message accordingly.
 When we start the program we recalculate neighbors and send chokes and unchokes based on that and then selects the optimistically unchoked neighbors. Then we begin the timers to do this again in it's own thread.
