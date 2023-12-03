@@ -167,7 +167,6 @@ public class peerProcess {
         Log.receiveConnection(peerId);
         send = new peerConnectionSend(connection);
         recv = new peerConnectionReceive(connection);
-        System.out.println("Connection received from peer " + Integer.toString(peerId) + " successfully!");
 
         // Handshake exchange.
         ReceiveHandshake();
@@ -216,9 +215,6 @@ public class peerProcess {
         // Receive handshake from connected peer.
         String handshake = recv.read();
 
-        // Print handshake for debugging.
-        System.out.println("Received handshake: " + handshake);
-
         // Validate handshake.
         if (!message.isValidHandshake(handshake, this.peerId)) {
           throw new Exception(
@@ -251,7 +247,6 @@ public class peerProcess {
         bitfieldMsg = recv.read();
         peerBitfield = new bitfield(bitfieldMsg);
         // Print message for debugging.
-        System.out.println("Received bitfield: " + bitfieldMsg);
 
         desiredPiecesSemaphor.acquire();
         iDesiredPieces = myBitfield.processBitfieldMessage(bitfieldMsg);
