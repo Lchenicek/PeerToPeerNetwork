@@ -129,7 +129,4 @@ public class logger {
     //this is it's own function because if not I would have to handle the exception every time
     //and like absolutely not holy shit
 
-    //TODO: destruct logger and close file
-    //TODO: rest of logger methods
-    //TODO(?):log wipes every run. should it be consistent?
 }

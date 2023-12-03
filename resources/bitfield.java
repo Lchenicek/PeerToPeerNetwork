@@ -9,7 +9,6 @@ public class bitfield {
     //actually looping through it
 
     public bitfield(int filesize, int pieceSize, boolean hasFile) {
-        // TODO(bndalichako): Note that project PDF talks about implementing trailing 0 bits.
         //If the file size is 100Bytes and a piece is 10bytes, we can just record the 10 pieces we may or may not have
         int bitfieldSize = (int) Math.ceil((double) filesize/(double) pieceSize);
         if (hasFile) {
@@ -30,7 +29,6 @@ public class bitfield {
     public bitfield(String bitfieldMsg){
         //constructor from message
         int msgSize = (Integer.parseInt(bitfieldMsg.substring(0, 4)) + 1) * 8;
-        System.out.println(msgSize);
         ownedPieces = 0;
         for(int i = 5; i < msgSize; i++){
             try{
@@ -76,7 +74,7 @@ public class bitfield {
         return ownedPieces;
     }
 
-    //Takes in another resources.bitfield, returns a list of pieces we want by index?
+    //Takes in another resources.bitfield, returns a list of pieces we want by index
     public ArrayList<Integer> getMissingBits(ArrayList<Boolean> otherBitfield) {
         ArrayList<Integer> intrestingPieces = new ArrayList<Integer>();
         for (int i = 0; i < otherBitfield.size(); ++i) {

@@ -69,8 +69,6 @@ public class fileManager {
     public void writeData(int pieceIndex, byte[] bytesToRead) {
         //We multiply by pieceSize because we will only read/write by piece
         int indexOffset = pieceIndex * pieceSize;
-        System.out.println(pieceIndex);
-        System.out.println(bytesToRead.length);
         for (int i = 0; i < bytesToRead.length; ++i) {
             bytes[i + indexOffset] = bytesToRead[i];
         }
